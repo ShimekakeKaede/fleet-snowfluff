@@ -1,0 +1,1179 @@
+/* Fleet Snowfluff — Vibrancy opaque-chrome overlay
+ *
+ * Requires: Vibrancy Continued + vscode_vibrancy.imports → deployed CSS (setup script embeds JS).
+ * Run scripts/setup-vibrancy.ps1 after edits, then Reload Vibrancy.
+ *
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │ Chrome (opaque #111111)                                         │
+ * │   Activity bar, title bar, status bar, sidebar headers          │
+ * ├─────────────────────────────────────────────────────────────────┤
+ * │ Primary sidebar content — #111111 @ 50%                         │
+ * │   Tint on .part.sidebar; inner layers transparent               │
+ * ├─────────────────────────────────────────────────────────────────┤
+ * │ Content areas — #000000 @ 33% (single layer, no stack)        │
+ * │   Editor + empty home/watermark: .editor-container::before /       │
+ * │     .editor-group-container.empty::before — #000000 @ 33%          │
+ * │   Agent session: .part.auxiliarybar > .content shell          │
+ * │   Panel (Output/Terminal/Problems/Debug/Ports):                 │
+ * │     .pane-body::before — single #000000 @ 33% layer             │
+ * │     all inner surfaces transparent                              │
+ * ├─────────────────────────────────────────────────────────────────┤
+ * │ Agent history (New Agent + 会话履历) — opaque #111111           │
+ * │   .part.unifiedsidebar / .agent-sidebar / split :has(...)     │
+ * ├─────────────────────────────────────────────────────────────────┤
+ * │ Tab strips (Editor + Agent + Panel)                           │
+ * │   Bar + inactive tabs: #111111 @ 50%                            │
+ * │   Active tab: #000000 @ 100% + 3px flowing underline (2s)       │
+ * ├─────────────────────────────────────────────────────────────────┤
+ * │ Split borders (Editor + Agent) — sakura→indigo gradient (4s)    │
+ * │ Scrollbars — workbench-wide 6px pill (#EEEEEE @ 40% / hover 70%)   │
+ * │   Vertical + horizontal (Editor / Panel / Agent / chrome / tabs)  │
+ * │   Terminal xterm: .xterm-scrollbar > .xterm-slider (separate)     │
+ * │ Title bar mascot — fleet-titlebar-mascot.css (setup script, data URI) │
+ * │ Home watermark — fleet-home-watermark.css (Aemeath_JUMP.gif, setup)   │
+ * │ Activity bar — active icon: indigo→sakura gradient + glow (.active/.checked) │
+ * │ Editor line numbers — sakura→indigo gradient + glow (cursor + selection)    │
+ * │ Editor indent guides — pink→indigo gradient by nesting depth (theme colors) │
+ * │ Editor atmosphere — selection gradient, GIF cursor, typing droppings, glitch   │
+ * │ Panel view switcher — flowing underline on checked composite-bar item       │
+ * │ Breakpoint glyph — Aemeath_GLASS_titlebar.gif (fleet-titlebar-mascot.css)   │
+ * └─────────────────────────────────────────────────────────────────┘ */
+
+:root {
+  --fleet-content-tint: #00000054;
+  --fleet-sidebar-content-tint: rgba(17, 17, 17, 0.5);
+  --fleet-agent-chrome: #111111;
+  --fleet-tab-strip-tint: rgba(17, 17, 17, 0.5);
+  --fleet-tab-active-bg: #000000;
+  --fleet-split-sakura: #ffb7c5;
+  --fleet-split-indigo: #4e8fa8;
+  --fleet-scrollbar: rgba(238, 238, 238, 0.4);
+  --fleet-scrollbar-hover: rgba(238, 238, 238, 0.7);
+  --fleet-scrollbar-active: rgba(238, 238, 238, 0.7);
+  --fleet-scrollbar-width: 6px;
+  --fleet-scrollbar-inset: 4px;
+  --fleet-terminal-tabs-tint: rgba(17, 17, 17, 0.2);
+  --fleet-flow-duration: 4s;
+  --fleet-tab-flow-duration: 2s;
+  --fleet-flow-gradient-v: linear-gradient(
+    180deg,
+    #ffb7c5 0%,
+    #4e8fa8 25%,
+    #ffb7c5 50%,
+    #4e8fa8 75%,
+    #ffb7c5 100%
+  );
+  --fleet-flow-gradient-h: linear-gradient(
+    90deg,
+    #ffb7c5 0%,
+    #4e8fa8 25%,
+    #ffb7c5 50%,
+    #4e8fa8 75%,
+    #ffb7c5 100%
+  );
+  --fleet-act-glow-sakura: rgba(255, 183, 197, 0.9);
+  --fleet-act-glow-indigo: rgba(78, 143, 168, 0.75);
+  --fleet-ln-sakura: #ffb7c5;
+  --fleet-ln-indigo: #4e8fa8;
+  --fleet-ln-mid: #c8a8c0;
+  --fleet-ln-glow-sakura: rgba(255, 183, 197, 0.95);
+  --fleet-ln-glow-indigo: rgba(78, 143, 168, 0.88);
+  --fleet-sel-indigo: rgba(78, 143, 168, 0.38);
+  --fleet-sel-sakura: rgba(255, 143, 171, 0.38);
+  --fleet-sel-indigo-dim: rgba(78, 143, 168, 0.22);
+  --fleet-sel-sakura-dim: rgba(255, 143, 171, 0.22);
+  --fleet-cursor-cyan: #92ded9;
+  --fleet-cursor-glow: rgba(146, 222, 217, 0.85);
+  --fleet-glitch-violet: #b090f0;
+  --fleet-glitch-pink: #ff8fab;
+  --fleet-act-icon-font-size: 28.8px;
+  --fleet-act-icon-mask-size: 28.8px;
+  --fleet-act-glow-near: 4px;
+  --fleet-act-glow-far: 10px;
+  --fleet-act-icon-stroke: 0.765px;
+}
+
+@keyframes fleet-flow-y {
+  0% {
+    transform: translate3d(0, -50%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fleet-flow-x {
+  0% {
+    transform: translate3d(-50%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* ── Workbench tokens (Vibrancy transparent chain) ── */
+
+.monaco-workbench {
+  --vscode-panel-background: transparent !important;
+  --vscode-terminal-background: transparent !important;
+}
+
+body .monaco-workbench .part.panel {
+  --vscode-panel-background: transparent !important;
+  --vscode-outputView-background: transparent !important;
+  --vscode-terminal-background: transparent !important;
+}
+
+/* ── Chrome — opaque #111111 ── */
+
+.monaco-workbench .part.activitybar,
+.monaco-workbench .part.titlebar,
+#workbench\.parts\.titlebar,
+.monaco-workbench .part.statusbar,
+.monaco-workbench .part.titlebar > .title,
+.quick-input-widget {
+  background-color: #111111 !important;
+}
+
+/* ── Activity bar — active icons: diagonal gradient + glow ──
+ * View icons: .content > .composite-bar, only .action-item.checked.
+ * Account / Settings: .fleet-act-menu-open (fleet-activity-global-menu.js import). */
+
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked .active-item-indicator:before {
+  border-left-color: transparent !important;
+}
+
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked .active-item-indicator {
+  background-color: transparent !important;
+}
+
+/* View icons — checked only */
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked .action-label::before,
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked:hover .action-label::before {
+  outline: none !important;
+  font-size: var(--fleet-act-icon-font-size) !important;
+  -webkit-text-stroke: var(--fleet-act-icon-stroke) transparent !important;
+  paint-order: stroke fill !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background-color: transparent !important;
+  background-image: linear-gradient(
+    var(--fleet-act-icon-angle, 135deg),
+    var(--fleet-split-indigo) 0%,
+    var(--fleet-split-sakura) 100%
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked .action-label,
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked:hover .action-label {
+  filter: drop-shadow(0 0 var(--fleet-act-glow-near) var(--fleet-act-glow-sakura))
+    drop-shadow(0 0 var(--fleet-act-glow-far) var(--fleet-act-glow-indigo)) !important;
+}
+
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked .action-label.uri-icon,
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked:hover .action-label.uri-icon,
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked .action-label[class*="activity-"],
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked:hover .action-label[class*="activity-"] {
+  background-color: transparent !important;
+  background-image: linear-gradient(
+    var(--fleet-act-icon-angle, 135deg),
+    var(--fleet-split-indigo) 0%,
+    var(--fleet-split-sakura) 100%
+  ) !important;
+  mask-size: var(--fleet-act-icon-mask-size) var(--fleet-act-icon-mask-size) !important;
+  -webkit-mask-size: var(--fleet-act-icon-mask-size) var(--fleet-act-icon-mask-size) !important;
+  filter: drop-shadow(0 0 var(--fleet-act-glow-near) var(--fleet-act-glow-sakura))
+    drop-shadow(0 0 var(--fleet-act-glow-far) var(--fleet-act-glow-indigo)) !important;
+}
+
+/* Global bar — Account / Settings: glow while submenu open (.fleet-act-menu-open from JS) */
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.fleet-act-menu-open .action-label::before,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.composite-bar-action-tab.fleet-act-menu-open .action-label::before,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .composite-bar-action-tab.fleet-act-menu-open .action-label::before,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.fleet-act-menu-open .composite-bar-action-tab-label .action-label::before,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .composite-bar-action-tab.fleet-act-menu-open .composite-bar-action-tab-label .action-label::before,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.focused .action-label::before,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.focused .composite-bar-action-tab-label .action-label::before,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item:focus-within .action-label::before,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item:focus-within .composite-bar-action-tab-label .action-label::before {
+  outline: none !important;
+  font-size: var(--fleet-act-icon-font-size) !important;
+  -webkit-text-stroke: var(--fleet-act-icon-stroke) transparent !important;
+  paint-order: stroke fill !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background-color: transparent !important;
+  background-image: linear-gradient(
+    var(--fleet-act-icon-angle, 135deg),
+    var(--fleet-split-indigo) 0%,
+    var(--fleet-split-sakura) 100%
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.fleet-act-menu-open .action-label,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .composite-bar-action-tab.fleet-act-menu-open .action-label,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.fleet-act-menu-open .composite-bar-action-tab-label .action-label,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .composite-bar-action-tab.fleet-act-menu-open .composite-bar-action-tab-label .action-label,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.focused .action-label,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.focused .composite-bar-action-tab-label .action-label,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item:focus-within .action-label,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item:focus-within .composite-bar-action-tab-label .action-label {
+  color: transparent !important;
+  filter: drop-shadow(0 0 var(--fleet-act-glow-near) var(--fleet-act-glow-sakura))
+    drop-shadow(0 0 var(--fleet-act-glow-far) var(--fleet-act-glow-indigo)) !important;
+}
+
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.fleet-act-menu-open .action-label.uri-icon,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .composite-bar-action-tab.fleet-act-menu-open .action-label.uri-icon,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.fleet-act-menu-open .action-label[class*="activity-"],
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .composite-bar-action-tab.fleet-act-menu-open .action-label[class*="activity-"],
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.fleet-act-menu-open .composite-bar-action-tab-label .action-label.uri-icon,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .composite-bar-action-tab.fleet-act-menu-open .composite-bar-action-tab-label .action-label.uri-icon,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.fleet-act-menu-open .composite-bar-action-tab-label .action-label[class*="activity-"],
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .composite-bar-action-tab.fleet-act-menu-open .composite-bar-action-tab-label .action-label[class*="activity-"],
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.focused .action-label.uri-icon,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.focused .action-label[class*="activity-"],
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.focused .composite-bar-action-tab-label .action-label.uri-icon,
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.focused .composite-bar-action-tab-label .action-label[class*="activity-"] {
+  background-color: transparent !important;
+  background-image: linear-gradient(
+    var(--fleet-act-icon-angle, 135deg),
+    var(--fleet-split-indigo) 0%,
+    var(--fleet-split-sakura) 100%
+  ) !important;
+  mask-size: var(--fleet-act-icon-mask-size) var(--fleet-act-icon-mask-size) !important;
+  -webkit-mask-size: var(--fleet-act-icon-mask-size) var(--fleet-act-icon-mask-size) !important;
+  filter: drop-shadow(0 0 var(--fleet-act-glow-near) var(--fleet-act-glow-sakura))
+    drop-shadow(0 0 var(--fleet-act-glow-far) var(--fleet-act-glow-indigo)) !important;
+}
+
+/* Fallback: menu open, JS has not marked a specific icon yet */
+.monaco-workbench:has(.context-view .monaco-menu-container):not(:has(.fleet-act-menu-open)) .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item .action-label::before,
+.monaco-workbench:has(.context-view .monaco-menu-container):not(:has(.fleet-act-menu-open)) .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.composite-bar-action-tab .action-label::before,
+.monaco-workbench:has(.context-view .monaco-menu-container):not(:has(.fleet-act-menu-open)) .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item .composite-bar-action-tab-label .action-label::before {
+  outline: none !important;
+  font-size: var(--fleet-act-icon-font-size) !important;
+  -webkit-text-stroke: var(--fleet-act-icon-stroke) transparent !important;
+  paint-order: stroke fill !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background-color: transparent !important;
+  background-image: linear-gradient(
+    var(--fleet-act-icon-angle, 135deg),
+    var(--fleet-split-indigo) 0%,
+    var(--fleet-split-sakura) 100%
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+
+.monaco-workbench:has(.context-view .monaco-menu-container):not(:has(.fleet-act-menu-open)) .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item .action-label,
+.monaco-workbench:has(.context-view .monaco-menu-container):not(:has(.fleet-act-menu-open)) .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item.composite-bar-action-tab .action-label,
+.monaco-workbench:has(.context-view .monaco-menu-container):not(:has(.fleet-act-menu-open)) .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item .composite-bar-action-tab-label .action-label {
+  color: transparent !important;
+  filter: drop-shadow(0 0 var(--fleet-act-glow-near) var(--fleet-act-glow-sakura))
+    drop-shadow(0 0 var(--fleet-act-glow-far) var(--fleet-act-glow-indigo)) !important;
+}
+
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item:nth-child(7n + 1) {
+  --fleet-act-icon-angle: 138deg;
+}
+
+.monaco-workbench .activitybar > .content > :not(.composite-bar) .monaco-action-bar .action-item:nth-child(7n + 2) {
+  --fleet-act-icon-angle: 148deg;
+}
+
+/* Per-icon diagonal angle variation (view icons) */
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked:nth-child(7n + 1) {
+  --fleet-act-icon-angle: 118deg;
+}
+
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked:nth-child(7n + 2) {
+  --fleet-act-icon-angle: 128deg;
+}
+
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked:nth-child(7n + 3) {
+  --fleet-act-icon-angle: 135deg;
+}
+
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked:nth-child(7n + 4) {
+  --fleet-act-icon-angle: 142deg;
+}
+
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked:nth-child(7n + 5) {
+  --fleet-act-icon-angle: 152deg;
+}
+
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked:nth-child(7n + 6) {
+  --fleet-act-icon-angle: 125deg;
+}
+
+.monaco-workbench .activitybar > .content > .composite-bar .monaco-action-bar .action-item.checked:nth-child(7n + 7) {
+  --fleet-act-icon-angle: 148deg;
+}
+
+/* Cursor sidebar2 horizontal strip (fallback when not using vertical activity bar) */
+.monaco-workbench .sidebar2-item-icon-anysphere.sidebar-list-item-selected {
+  background-color: transparent !important;
+  outline: none !important;
+}
+
+.monaco-workbench .sidebar2-item-icon-anysphere.sidebar-list-item-selected > div.codicon::before,
+.monaco-workbench .sidebar2-item-icon-anysphere.sidebar-list-item-selected:hover > div.codicon::before {
+  outline: none !important;
+  font-size: var(--fleet-act-icon-font-size) !important;
+  -webkit-text-stroke: var(--fleet-act-icon-stroke) transparent !important;
+  paint-order: stroke fill !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background-color: transparent !important;
+  background-image: linear-gradient(
+    var(--fleet-act-icon-angle, 135deg),
+    var(--fleet-split-indigo) 0%,
+    var(--fleet-split-sakura) 100%
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+
+.monaco-workbench .sidebar2-item-icon-anysphere.sidebar-list-item-selected > div.codicon,
+.monaco-workbench .sidebar2-item-icon-anysphere.sidebar-list-item-selected:hover > div.codicon,
+.monaco-workbench .sidebar2-item-icon-anysphere.sidebar-list-item-selected > div[class*="sidebarpart2-activity-"],
+.monaco-workbench .sidebar2-item-icon-anysphere.sidebar-list-item-selected:hover > div[class*="sidebarpart2-activity-"] {
+  filter: drop-shadow(0 0 var(--fleet-act-glow-near) var(--fleet-act-glow-sakura))
+    drop-shadow(0 0 var(--fleet-act-glow-far) var(--fleet-act-glow-indigo)) !important;
+}
+
+.monaco-workbench .sidebar2-item-icon-anysphere.sidebar-list-item-selected > div[class*="sidebarpart2-activity-"],
+.monaco-workbench .sidebar2-item-icon-anysphere.sidebar-list-item-selected:hover > div[class*="sidebarpart2-activity-"] {
+  background-color: transparent !important;
+  background-image: linear-gradient(
+    var(--fleet-act-icon-angle, 135deg),
+    var(--fleet-split-indigo) 0%,
+    var(--fleet-split-sakura) 100%
+  ) !important;
+  mask-size: var(--fleet-act-icon-mask-size) var(--fleet-act-icon-mask-size) !important;
+  -webkit-mask-size: var(--fleet-act-icon-mask-size) var(--fleet-act-icon-mask-size) !important;
+}
+
+/* ── Primary sidebar — tint on part; headers opaque ── */
+
+.monaco-workbench .part.sidebar,
+.monaco-workbench .part.sidebar.left,
+.monaco-workbench .part.sidebar.left#workbench\.parts\.sidebar,
+#workbench\.parts\.sidebar {
+  --vscode-sideBar-background: transparent !important;
+  --vscode-sideBarSectionHeader-background: #111111 !important;
+  --vscode-sideBarTitle-background: #111111 !important;
+  --vscode-sideBarStickyScroll-background: #111111 !important;
+  background-color: var(--fleet-sidebar-content-tint) !important;
+}
+
+.monaco-workbench .part.sidebar > div,
+.monaco-workbench .part.sidebar > div > div,
+.monaco-workbench .part.sidebar > div > div > div,
+.monaco-workbench .part.sidebar > div > div > div > div,
+.monaco-workbench .part.sidebar > div > div > div > div > div,
+.monaco-workbench .part.sidebar > div > div > div > div > div:nth-child(2),
+.monaco-workbench .part.sidebar .content,
+.monaco-workbench .part.sidebar .content .monaco-split-view2,
+.monaco-workbench .part.sidebar .monaco-pane-view,
+.monaco-workbench .part.sidebar .monaco-pane-view .split-view-view,
+.monaco-workbench .part.sidebar .pane-body,
+.monaco-workbench .part.sidebar .explorer-folders-view,
+.monaco-workbench .part.sidebar .scm-view,
+.monaco-workbench .part.sidebar .search-view,
+.monaco-workbench .part.sidebar .extensions-viewlet,
+.monaco-workbench .part.sidebar .welcome-page,
+.monaco-workbench .part.sidebar .monaco-list,
+.monaco-workbench .part.sidebar .monaco-list .monaco-scrollable-element,
+.monaco-workbench .part.sidebar .monaco-list .monaco-list-row,
+.monaco-workbench .part.sidebar .monaco-tree,
+.monaco-workbench .part.sidebar .monaco-tree-sticky-container,
+.monaco-workbench .part.sidebar .monaco-tree-row {
+  background-color: transparent !important;
+}
+
+.monaco-workbench .part.sidebar .composite.title,
+.monaco-workbench .part.sidebar .pane-header,
+.monaco-workbench .part.sidebar .pane-header .pane-header,
+.monaco-workbench .part.sidebar .title {
+  background-color: #111111 !important;
+}
+
+/* ── Scrollbars — workbench-wide pill (Editor + Agent + chrome + tab strips) ── */
+
+body .monaco-workbench {
+  --vscode-scrollbarSlider-background: var(--fleet-scrollbar) !important;
+  --vscode-scrollbarSlider-hoverBackground: var(--fleet-scrollbar-hover) !important;
+  --vscode-scrollbarSlider-activeBackground: var(--fleet-scrollbar-active) !important;
+}
+
+body .monaco-workbench .part.panel .pane-body .xterm,
+body .monaco-workbench .part.panel .pane-body .xterm .xterm-scrollable-element {
+  --vscode-scrollbarSliderBackground: var(--fleet-scrollbar) !important;
+  --vscode-scrollbarSlider-background: var(--fleet-scrollbar) !important;
+  --vscode-scrollbarSlider-hoverBackground: var(--fleet-scrollbar-hover) !important;
+  --vscode-scrollbarSlider-activeBackground: var(--fleet-scrollbar-active) !important;
+}
+
+/* Vertical — sidebar, activity bar, editor, panel, agent, tab overflow, etc. */
+body .monaco-workbench .monaco-scrollable-element > .scrollbar.vertical {
+  width: var(--fleet-scrollbar-width) !important;
+  min-width: var(--fleet-scrollbar-width) !important;
+  max-width: var(--fleet-scrollbar-width) !important;
+  right: var(--fleet-scrollbar-inset) !important;
+  left: auto !important;
+  z-index: 20 !important;
+}
+
+body .monaco-workbench .monaco-scrollable-element > .scrollbar.vertical > .slider {
+  width: var(--fleet-scrollbar-width) !important;
+  min-width: var(--fleet-scrollbar-width) !important;
+  max-width: var(--fleet-scrollbar-width) !important;
+  left: 0 !important;
+  right: auto !important;
+  box-sizing: border-box !important;
+  clip-path: inset(4px 0 round 9999px) !important;
+}
+
+/* Horizontal — panel / editor / agent tab strips, terminal tab list, etc. */
+body .monaco-workbench .monaco-scrollable-element > .scrollbar.horizontal {
+  height: var(--fleet-scrollbar-width) !important;
+  min-height: var(--fleet-scrollbar-width) !important;
+  max-height: var(--fleet-scrollbar-width) !important;
+  bottom: var(--fleet-scrollbar-inset) !important;
+  top: auto !important;
+  z-index: 20 !important;
+}
+
+body .monaco-workbench .monaco-scrollable-element > .scrollbar.horizontal > .slider {
+  height: var(--fleet-scrollbar-width) !important;
+  min-height: var(--fleet-scrollbar-width) !important;
+  max-height: var(--fleet-scrollbar-width) !important;
+  top: 0 !important;
+  bottom: auto !important;
+  box-sizing: border-box !important;
+  clip-path: inset(0 4px round 9999px) !important;
+}
+
+body .monaco-workbench .monaco-scrollable-element > .scrollbar > .slider {
+  background: var(--fleet-scrollbar) !important;
+  background-color: var(--fleet-scrollbar) !important;
+  border-radius: 9999px !important;
+}
+
+body .monaco-workbench .monaco-scrollable-element > .scrollbar > .slider:hover {
+  background: var(--fleet-scrollbar-hover) !important;
+  background-color: var(--fleet-scrollbar-hover) !important;
+}
+
+body .monaco-workbench .monaco-scrollable-element > .scrollbar > .slider.active {
+  background: var(--fleet-scrollbar-active) !important;
+  background-color: var(--fleet-scrollbar-active) !important;
+}
+
+/* Terminal xterm — .xterm-slider inside .xterm-scrollbar.xterm-vertical */
+body .monaco-workbench .part.panel .pane-body .xterm .xterm-scrollable-element > .xterm-scrollbar.xterm-vertical {
+  width: var(--fleet-scrollbar-width) !important;
+  min-width: var(--fleet-scrollbar-width) !important;
+  max-width: var(--fleet-scrollbar-width) !important;
+  right: var(--fleet-scrollbar-inset) !important;
+  left: auto !important;
+  z-index: 20 !important;
+}
+
+body .monaco-workbench .part.panel .pane-body .xterm .xterm-scrollable-element > .xterm-scrollbar.xterm-vertical > .xterm-slider {
+  background: var(--fleet-scrollbar) !important;
+  background-color: var(--fleet-scrollbar) !important;
+  width: var(--fleet-scrollbar-width) !important;
+  min-width: var(--fleet-scrollbar-width) !important;
+  max-width: var(--fleet-scrollbar-width) !important;
+  left: 0 !important;
+  right: auto !important;
+  box-sizing: border-box !important;
+  border-radius: 9999px !important;
+  clip-path: inset(4px 0 round 9999px) !important;
+}
+
+body .monaco-workbench .part.panel .pane-body .xterm .xterm-scrollable-element > .xterm-scrollbar.xterm-vertical > .xterm-slider:hover,
+body .monaco-workbench .part.panel .pane-body .xterm .xterm-scrollable-element > .xterm-scrollbar.xterm-vertical > .xterm-slider.active {
+  background: var(--fleet-scrollbar-hover) !important;
+  background-color: var(--fleet-scrollbar-hover) !important;
+}
+
+/* ── Tab strips — #111111 @ 50% (Editor + Agent + Panel) ── */
+
+.monaco-workbench .part.editor .editor-group-container > .title,
+.monaco-workbench .part.editor .editor-group-container > .title .tabs-and-actions-container,
+.monaco-workbench .part.editor .tabs-container,
+.editor-group-container > .tabs,
+.editor-group-container > .tabs .tab:not(.active),
+.monaco-workbench .part.editor > .content .editor-group-container > .title .tabs-container,
+.monaco-workbench .part.editor > .content .editor-group-container > .title .tabs-container > .tab:not(.active),
+.monaco-workbench .part.auxiliarybar > .title,
+.monaco-workbench .part.auxiliarybar .composite.title,
+.monaco-workbench .part.auxiliarybar .embedded-aux-bar-editor-container .editor-group-container > .title,
+.monaco-workbench .part.auxiliarybar .embedded-aux-bar-editor-container .editor-group-container > .title .tabs-and-actions-container,
+.monaco-workbench .part.auxiliarybar .tabs-container,
+.monaco-workbench .part.auxiliarybar .tabs-container > .tab:not(.active),
+.monaco-workbench .part.auxiliarybar .embedded-aux-bar-editor-container .editor-group-container > .title .tabs-container,
+.monaco-workbench .part.auxiliarybar .embedded-aux-bar-editor-container .editor-group-container > .title .tabs-container > .tab:not(.active),
+.monaco-workbench .part.panel > .title,
+.monaco-workbench .part.panel > .composite.title,
+.monaco-workbench .part.panel .terminal-tabs-container,
+.monaco-workbench .part.panel .tabs-list-container,
+.monaco-workbench .part.panel .tabs-list,
+.monaco-workbench .part.panel .tabs-container > .tab:not(.active) {
+  background-color: var(--fleet-tab-strip-tint) !important;
+}
+
+/* Terminal tabs (right-side integrated-terminal list) — #111111 @ 25% */
+body .monaco-workbench .pane-body.integrated-terminal .tabs-container,
+body .monaco-workbench .pane-body.integrated-terminal .tabs-list-container,
+body .monaco-workbench .pane-body.integrated-terminal .tabs-list,
+body .monaco-workbench .pane-body.integrated-terminal .tabs-list .monaco-list,
+body .monaco-workbench .pane-body.integrated-terminal .tabs-list .monaco-list-rows,
+body .monaco-workbench .pane-body.integrated-terminal .tabs-list .monaco-list-row,
+body .monaco-workbench .pane-body.integrated-terminal .tabs-list .terminal-tabs-entry {
+  background-color: var(--fleet-terminal-tabs-tint) !important;
+}
+
+/* Active tab — #000000 + flowing 3px underline */
+.monaco-workbench .part.editor .tabs-container > .tab.active,
+.editor-group-container > .tabs .tab.active,
+.monaco-workbench .part.editor > .content .editor-group-container > .title .tabs-container > .tab.active,
+.monaco-workbench .part.auxiliarybar .tabs-container > .tab.active,
+.monaco-workbench .part.auxiliarybar .embedded-aux-bar-editor-container .editor-group-container > .title .tabs-container > .tab.active,
+.monaco-workbench .part.panel .tabs-container > .tab.active {
+  background-color: var(--fleet-tab-active-bg) !important;
+  --tab-border-top-color: transparent !important;
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+  box-shadow: none !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.monaco-workbench .part.editor .tabs-container > .tab.active::after,
+.editor-group-container > .tabs .tab.active::after,
+.monaco-workbench .part.editor > .content .editor-group-container > .title .tabs-container > .tab.active::after,
+.monaco-workbench .part.auxiliarybar .tabs-container > .tab.active::after,
+.monaco-workbench .part.auxiliarybar .embedded-aux-bar-editor-container .editor-group-container > .title .tabs-container > .tab.active::after,
+.monaco-workbench .part.panel .tabs-container > .tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  pointer-events: none;
+  z-index: 2;
+  background-image: var(--fleet-flow-gradient-h) !important;
+  background-size: 100% 100% !important;
+  background-color: transparent !important;
+  width: 200% !important;
+  animation: fleet-flow-x var(--fleet-tab-flow-duration) linear infinite !important;
+  transition: none !important;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* ── Panel / Agent shells — transparent (tint on inner leaf layers below) ── */
+
+.monaco-workbench .part.panel,
+.monaco-workbench .part.panel > .content,
+.monaco-workbench .part.auxiliarybar,
+.monaco-workbench .part.auxiliarybar.basepanel.right,
+.monaco-workbench .part.auxiliarybar.basepanel,
+#workbench\.parts\.auxiliarybar,
+body .monaco-workbench .part.auxiliarybar.basepanel.right.pane-composite-part.auxiliary-bar-show-agent-tabs {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.monaco-workbench .part.auxiliarybar,
+#workbench\.parts\.auxiliarybar {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* ── Flowing split borders (Editor + Agent) ── */
+
+.monaco-workbench .part.auxiliarybar::after,
+#workbench\.parts\.auxiliarybar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  pointer-events: none;
+  z-index: 5;
+  background-image: var(--fleet-flow-gradient-v) !important;
+  background-size: 100% 100% !important;
+  background-color: transparent !important;
+  height: 200% !important;
+  animation: fleet-flow-y var(--fleet-flow-duration) linear infinite !important;
+  transition: none !important;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.monaco-workbench .part.editor .monaco-sash.vertical::before,
+.monaco-workbench .part.auxiliarybar .monaco-sash.vertical::before,
+.monaco-workbench .composer-control-panel .monaco-sash.vertical::before,
+.monaco-workbench .part.editor .side-by-side-editor-container.editor-instance[style*='border-left-width: 1px']::after,
+.monaco-workbench .part.auxiliarybar .side-by-side-editor-container.editor-instance[style*='border-left-width: 1px']::after {
+  background-image: var(--fleet-flow-gradient-v) !important;
+  background-size: 100% 100% !important;
+  background-color: transparent !important;
+  height: 200% !important;
+  top: 0 !important;
+  animation: fleet-flow-y var(--fleet-flow-duration) linear infinite !important;
+  transition: none !important;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.monaco-workbench .part.editor .monaco-sash.horizontal::before,
+.monaco-workbench .part.auxiliarybar .monaco-sash.horizontal::before,
+.monaco-workbench .composer-control-panel .monaco-sash.horizontal::before,
+.monaco-workbench .part.editor .side-by-side-editor-container.editor-instance[style*='border-top-width: 1px']::after,
+.monaco-workbench .part.auxiliarybar .side-by-side-editor-container.editor-instance[style*='border-top-width: 1px']::after {
+  background-image: var(--fleet-flow-gradient-h) !important;
+  background-size: 100% 100% !important;
+  background-color: transparent !important;
+  width: 200% !important;
+  left: 0 !important;
+  animation: fleet-flow-x var(--fleet-flow-duration) linear infinite !important;
+  transition: none !important;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.monaco-workbench .part.editor .monaco-split-view2.separator-border.horizontal > .monaco-scrollable-element > .split-view-container > .split-view-view:not(:first-child)::before,
+.monaco-workbench .part.auxiliarybar .monaco-split-view2.separator-border.horizontal > .monaco-scrollable-element > .split-view-container > .split-view-view:not(:first-child)::before,
+.monaco-workbench .composer-control-panel .monaco-split-view2.separator-border.horizontal > .monaco-scrollable-element > .split-view-container > .split-view-view:not(:first-child)::before,
+.monaco-workbench .part.editor .monaco-split-view2.separator-border.vertical > .monaco-scrollable-element > .split-view-container > .split-view-view:not(:first-child)::before,
+.monaco-workbench .part.auxiliarybar .monaco-split-view2.separator-border.vertical > .monaco-scrollable-element > .split-view-container > .split-view-view:not(:first-child)::before,
+.monaco-workbench .composer-control-panel .monaco-split-view2.separator-border.vertical > .monaco-scrollable-element > .split-view-container > .split-view-view:not(:first-child)::before {
+  background: transparent !important;
+}
+
+.monaco-workbench .part.editor .monaco-sash.vertical::before,
+.monaco-workbench .part.auxiliarybar .monaco-sash.vertical::before,
+.monaco-workbench .composer-control-panel .monaco-sash.vertical::before {
+  width: 1px !important;
+  left: calc(50% - 0.5px) !important;
+  opacity: 1 !important;
+  overflow: hidden !important;
+}
+
+.monaco-workbench .part.editor .monaco-sash.horizontal::before,
+.monaco-workbench .part.auxiliarybar .monaco-sash.horizontal::before,
+.monaco-workbench .composer-control-panel .monaco-sash.horizontal::before {
+  height: 1px !important;
+  top: calc(50% - 0.5px) !important;
+  opacity: 1 !important;
+  overflow: hidden !important;
+}
+
+.monaco-workbench .part.editor .monaco-sash.vertical.hover::before,
+.monaco-workbench .part.editor .monaco-sash.vertical.active::before,
+.monaco-workbench .part.auxiliarybar .monaco-sash.vertical.hover::before,
+.monaco-workbench .part.auxiliarybar .monaco-sash.vertical.active::before,
+.monaco-workbench .composer-control-panel .monaco-sash.vertical.hover::before,
+.monaco-workbench .composer-control-panel .monaco-sash.vertical.active::before {
+  background-image: var(--fleet-flow-gradient-v) !important;
+  animation: fleet-flow-y var(--fleet-flow-duration) linear infinite !important;
+}
+
+.monaco-workbench .part.editor .monaco-sash.horizontal.hover::before,
+.monaco-workbench .part.editor .monaco-sash.horizontal.active::before,
+.monaco-workbench .part.auxiliarybar .monaco-sash.horizontal.hover::before,
+.monaco-workbench .part.auxiliarybar .monaco-sash.horizontal.active::before,
+.monaco-workbench .composer-control-panel .monaco-sash.horizontal.hover::before,
+.monaco-workbench .composer-control-panel .monaco-sash.horizontal.active::before {
+  background-image: var(--fleet-flow-gradient-h) !important;
+  animation: fleet-flow-x var(--fleet-flow-duration) linear infinite !important;
+}
+
+.monaco-workbench .part.editor .side-by-side-editor .monaco-sash::before,
+.monaco-workbench .part.auxiliarybar .side-by-side-editor .monaco-sash::before {
+  background-image: none !important;
+  animation: none !important;
+}
+
+.monaco-workbench .part.editor .side-by-side-editor-container.editor-instance,
+.monaco-workbench .part.auxiliarybar .side-by-side-editor-container.editor-instance {
+  border-left: none !important;
+  border-top: none !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.monaco-workbench .part.editor .side-by-side-editor-container.editor-instance::after,
+.monaco-workbench .part.auxiliarybar .side-by-side-editor-container.editor-instance::after {
+  content: '';
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.monaco-workbench .part.editor .side-by-side-editor-container.editor-instance[style*='border-left-width: 1px']::after,
+.monaco-workbench .part.auxiliarybar .side-by-side-editor-container.editor-instance[style*='border-left-width: 1px']::after {
+  top: 0;
+  left: 0;
+  width: 1px;
+}
+
+.monaco-workbench .part.editor .side-by-side-editor-container.editor-instance[style*='border-top-width: 1px']::after,
+.monaco-workbench .part.auxiliarybar .side-by-side-editor-container.editor-instance[style*='border-top-width: 1px']::after {
+  top: 0;
+  left: 0;
+  height: 1px;
+}
+
+.monaco-workbench .part.editor .monaco-sash.vertical,
+.monaco-workbench .part.auxiliarybar .monaco-sash.vertical,
+.monaco-workbench .composer-control-panel .monaco-sash.vertical,
+.monaco-workbench .part.editor .monaco-sash.horizontal,
+.monaco-workbench .part.auxiliarybar .monaco-sash.horizontal,
+.monaco-workbench .composer-control-panel .monaco-sash.horizontal {
+  overflow: hidden !important;
+}
+
+/* ── Content tint #000000 @ 33% — single layer per region ──
+   High-specificity (body prefix) beats Vibrancy + Cursor Dark transparent rules. */
+
+body .monaco-workbench .part.editor {
+  --vscode-editor-background: transparent !important;
+}
+
+body .monaco-workbench .part.editor .editor-container {
+  --vscode-editor-background: transparent !important;
+  position: relative !important;
+  isolation: isolate !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+body .monaco-workbench .part.editor .editor-container::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: var(--fleet-content-tint) !important;
+  background-color: var(--fleet-content-tint) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+body .monaco-workbench .part.editor .editor-container > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+body .monaco-workbench .part.editor .monaco-editor,
+body .monaco-workbench .part.editor .monaco-editor .margin,
+body .monaco-workbench .part.editor .monaco-editor .monaco-editor-background {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+body .monaco-workbench .part.editor .monaco-editor {
+  --vscode-editorStickyScroll-background: #000000 !important;
+  --vscode-editorStickyScrollGutter-background: #000000 !important;
+}
+
+body .monaco-workbench .part.editor .sticky-widget,
+body .monaco-workbench .part.editor .sticky-widget .sticky-line-root,
+body .monaco-workbench .part.editor .sticky-widget .sticky-line-content,
+body .monaco-workbench .part.editor .sticky-widget .sticky-line-number,
+body .monaco-workbench .part.editor .sticky-widget .sticky-line-background {
+  background: #000000 !important;
+  background-color: #000000 !important;
+}
+
+/* Empty editor group / home watermark — same tint as open editor content */
+body .monaco-workbench .part.editor .editor-group-container.empty {
+  --vscode-editorGroup-emptyBackground: transparent !important;
+  --vscode-editorGroup-background: transparent !important;
+  position: relative !important;
+  isolation: isolate !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+body .monaco-workbench .part.editor .editor-group-container.empty::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: var(--fleet-content-tint) !important;
+  background-color: var(--fleet-content-tint) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+body .monaco-workbench .part.editor .editor-group-container.empty > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+body .monaco-workbench .part.editor .editor-group-container.empty .editor-group-watermark,
+body .monaco-workbench .part.editor .editor-group-container.empty .editor-group-watermark .watermark-container,
+body .monaco-workbench .part.editor .editor-group-container.empty .editor-group-watermark .watermark-box,
+body .monaco-workbench .part.editor > .content .welcomePage {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Panel — wrappers transparent; unified ::before tint (matches Output/Terminal) */
+body .monaco-workbench .part.panel .monaco-pane-view,
+body .monaco-workbench .part.panel .split-view-container,
+body .monaco-workbench .part.panel .split-view-view,
+body .monaco-workbench .part.panel .view-pane .pane-body,
+body .monaco-workbench .part.panel .pane-body,
+body .monaco-workbench .part.panel .terminal-tabbed-view,
+body .monaco-workbench .part.panel .terminal-groups-container,
+body .monaco-workbench .part.panel .terminal-wrapper {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+body .monaco-workbench .part.panel .pane-body {
+  --vscode-panel-background: transparent !important;
+  --vscode-outputView-background: transparent !important;
+  --vscode-outputViewStickyScroll-background: transparent !important;
+  --vscode-terminal-background: transparent !important;
+  --vscode-editor-background: transparent !important;
+  position: relative !important;
+  isolation: isolate !important;
+}
+
+body .monaco-workbench .part.panel .pane-body::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: var(--fleet-content-tint) !important;
+  background-color: var(--fleet-content-tint) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+body .monaco-workbench .part.panel .pane-body > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Inner stack transparent — only ::before provides tint */
+body .monaco-workbench .part.panel .pane-body .monaco-editor,
+body .monaco-workbench .part.panel .pane-body .monaco-editor .margin,
+body .monaco-workbench .part.panel .pane-body .monaco-editor .monaco-editor-background,
+body .monaco-workbench .part.panel .pane-body .sticky-widget,
+body .monaco-workbench .part.panel .pane-body .terminal-outer-container,
+body .monaco-workbench .part.panel .pane-body #terminal,
+body .monaco-workbench .part.panel .pane-body .xterm,
+body .monaco-workbench .part.panel .pane-body .xterm-screen,
+body .monaco-workbench .part.panel .pane-body .xterm-viewport,
+body .monaco-workbench .part.panel .pane-body .xterm-rows,
+body .monaco-workbench .part.panel .pane-body .xterm .xterm-scrollable-element,
+body .monaco-workbench .part.panel .pane-body .xterm .xterm-helper-textarea,
+body .monaco-workbench .part.panel .pane-body .markers-panel,
+body .monaco-workbench .part.panel .pane-body .markers-panel-container,
+body .monaco-workbench .part.panel .pane-body .markers-table-container,
+body .monaco-workbench .part.panel .pane-body .repl,
+body .monaco-workbench .part.panel .pane-body .repl-tree,
+body .monaco-workbench .part.panel .pane-body .repl-input-wrapper,
+body .monaco-workbench .part.panel .pane-body .ports-view,
+body .monaco-workbench .part.panel .pane-body .monaco-table,
+body .monaco-workbench .part.panel .pane-body .monaco-list,
+body .monaco-workbench .part.panel .pane-body .monaco-list .monaco-scrollable-element,
+body .monaco-workbench .part.panel .pane-body .monaco-list .monaco-list-rows,
+body .monaco-workbench .part.panel .pane-body .monaco-list .monaco-list-row {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Agent session — tint shell; inner stack transparent */
+body .monaco-workbench .part.auxiliarybar > .content {
+  --vscode-editor-background: transparent !important;
+  --vscode-sideBar-background: transparent !important;
+  background: var(--fleet-content-tint) !important;
+  background-color: var(--fleet-content-tint) !important;
+}
+
+body .monaco-workbench .part.auxiliarybar > .content .embedded-aux-bar-editor-container .split-view-view:not(:has(.agent-sidebar)),
+body .monaco-workbench .part.auxiliarybar .scrollable-div-container,
+body .monaco-workbench .part.auxiliarybar .conversations,
+body .monaco-workbench .part.auxiliarybar [id^='bubble-'],
+body .monaco-workbench .part.auxiliarybar .composer-bar,
+body .monaco-workbench .part.auxiliarybar .composer-bar.editor,
+body .monaco-workbench .part.auxiliarybar .composer-messages-container,
+body .monaco-workbench .part.auxiliarybar .composer-control-panel,
+body .monaco-workbench .part.auxiliarybar [data-component='agent-panel'],
+body .monaco-workbench .part.auxiliarybar .agent-layout,
+body .monaco-workbench .part.auxiliarybar .embedded-aux-bar-editor-container,
+body .monaco-workbench .part.auxiliarybar .empty-pane-message-area,
+body .monaco-workbench .part.auxiliarybar .composer-message-codeblock,
+body .monaco-workbench .part.auxiliarybar .composer-diff-block,
+body .monaco-workbench .part.auxiliarybar .full-input-box,
+body .monaco-workbench .part.auxiliarybar .monaco-editor,
+body .monaco-workbench .part.auxiliarybar .monaco-editor .margin,
+body .monaco-workbench .part.auxiliarybar .monaco-editor .monaco-editor-background,
+body .monaco-workbench .part.auxiliarybar .monaco-editor-background {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Agent history — opaque #111111 */
+body .monaco-workbench .part.unifiedsidebar,
+body .monaco-workbench .part.unifiedsidebar > .content,
+body .monaco-workbench .part.unifiedsidebar .unified-agents-sidebar,
+body .monaco-workbench .part.unifiedsidebar .unified-agents-sidebar-content,
+body .monaco-workbench .unified-agents-sidebar-host,
+body .monaco-workbench .floating-aux-sidebar:has(.agent-sidebar),
+body .monaco-workbench .part.auxiliarybar .split-view-view:has(.agent-sidebar),
+body .monaco-workbench .part.auxiliarybar .embedded-aux-bar-editor-container .split-view-view:has(.agent-sidebar),
+body .monaco-workbench .agent-sidebar,
+body .monaco-workbench .agent-sidebar-header,
+body .monaco-workbench .agent-sidebar-body,
+body .monaco-workbench .agent-sidebar-list,
+body .monaco-workbench .agent-sidebar-section,
+body .monaco-workbench .agent-sidebar-sections,
+body .monaco-workbench .agent-pane-list,
+body .monaco-workbench .agent-sidebar-input-container,
+body .monaco-workbench .agent-sidebar-footer {
+  --vscode-sideBar-background: var(--fleet-agent-chrome) !important;
+  --vscode-editor-background: var(--fleet-agent-chrome) !important;
+  background: var(--fleet-agent-chrome) !important;
+  background-color: var(--fleet-agent-chrome) !important;
+}
+
+/* ── Editor line numbers — gradient + glow on cursor / selected lines ── */
+
+body .monaco-workbench .monaco-editor .margin-view-overlays .line-numbers {
+  transition: none !important;
+}
+
+body .monaco-workbench .monaco-editor .margin-view-overlays .line-numbers.active-line-number,
+body .monaco-workbench .monaco-editor .margin-view-overlays .line-numbers.fleet-line-number-highlight {
+  background-image: linear-gradient(
+    135deg,
+    var(--fleet-ln-sakura) 0%,
+    var(--fleet-ln-mid) 52%,
+    var(--fleet-ln-indigo) 100%
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  font-weight: 500 !important;
+  filter: drop-shadow(0 0 4px var(--fleet-ln-glow-sakura))
+    drop-shadow(0 0 7px var(--fleet-ln-glow-indigo)) !important;
+}
+
+/* ── Panel view switcher (Terminal / Problems / Output) — flowing underline ── */
+
+body .monaco-workbench .part.panel > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked:not(.icon) .action-label,
+body .monaco-workbench .part.panel.pane-composite-part > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked .action-label,
+body .monaco-workbench .pane-composite-part > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked .action-label,
+body .monaco-workbench .pane-composite-part > .header-or-footer > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked .action-label {
+  position: relative !important;
+  overflow: hidden !important;
+  border-bottom: none !important;
+}
+
+body .monaco-workbench .part.panel > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked .active-item-indicator:before,
+body .monaco-workbench .part.panel > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked:not(:focus) .active-item-indicator:before,
+body .monaco-workbench .part.panel.pane-composite-part > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked .active-item-indicator:before,
+body .monaco-workbench .part.panel.pane-composite-part > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked:not(:focus) .active-item-indicator:before,
+body .monaco-workbench .pane-composite-part > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked .active-item-indicator:before,
+body .monaco-workbench .pane-composite-part > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked:not(:focus) .active-item-indicator:before,
+body .monaco-workbench .pane-composite-part > .header-or-footer > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked .active-item-indicator:before {
+  border-top-color: transparent !important;
+  opacity: 0 !important;
+}
+
+body .monaco-workbench .part.panel > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked:not(.icon) .action-label::after,
+body .monaco-workbench .part.panel.pane-composite-part > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked .action-label::after,
+body .monaco-workbench .pane-composite-part > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked .action-label::after,
+body .monaco-workbench .pane-composite-part > .header-or-footer > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked .action-label::after {
+  content: '' !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  height: 2px !important;
+  pointer-events: none !important;
+  z-index: 5 !important;
+  background-image: var(--fleet-flow-gradient-h) !important;
+  background-size: 100% 100% !important;
+  background-color: transparent !important;
+  width: 200% !important;
+  animation: fleet-flow-x var(--fleet-tab-flow-duration) linear infinite !important;
+  transition: none !important;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* ── Editor atmosphere: selection gradient, cursor breathe, diagnostic glitch ── */
+
+@keyframes fleet-cursor-breathe {
+  0%,
+  100% {
+    opacity: 0.52;
+    filter: drop-shadow(0 0 2px var(--fleet-cursor-cyan));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px var(--fleet-cursor-glow))
+      drop-shadow(0 0 14px rgba(146, 222, 217, 0.35));
+  }
+}
+
+@keyframes fleet-squiggle-shift {
+  0% {
+    background-position: 0% 50%;
+    opacity: 0.82;
+    transform: translateX(0);
+  }
+  33% {
+    opacity: 1;
+    transform: translateX(-1px);
+  }
+  66% {
+    opacity: 0.55;
+    transform: translateX(1px);
+  }
+  100% {
+    background-position: 200% 50%;
+    opacity: 0.88;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fleet-squiggle-flicker {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  8% {
+    opacity: 0.25;
+  }
+  12% {
+    opacity: 1;
+  }
+  24% {
+    opacity: 0.45;
+  }
+  28% {
+    opacity: 0.95;
+  }
+  52% {
+    opacity: 0.65;
+  }
+  56% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 0.35;
+  }
+  76% {
+    opacity: 0.9;
+  }
+}
+
+body .monaco-workbench .monaco-editor .view-overlays .selected-text {
+  background-color: transparent !important;
+  background-image: linear-gradient(
+    90deg,
+    var(--fleet-sel-indigo) 0%,
+    rgba(196, 168, 192, 0.32) 50%,
+    var(--fleet-sel-sakura) 100%
+  ) !important;
+}
+
+body .monaco-workbench .monaco-editor .view-overlays .selectionHighlight {
+  background-color: transparent !important;
+  background-image: linear-gradient(
+    90deg,
+    var(--fleet-sel-indigo-dim) 0%,
+    rgba(196, 168, 192, 0.18) 50%,
+    var(--fleet-sel-sakura-dim) 100%
+  ) !important;
+}
+
+body.fleet-atmosphere-cursor .monaco-workbench .monaco-editor .cursors-layer .cursor {
+  animation: fleet-cursor-breathe 2.4s ease-in-out infinite !important;
+  border-radius: 1px !important;
+}
+
+body .monaco-workbench .monaco-editor .cursors-layer .fleet-cursor-sprite {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  animation: fleet-cursor-breathe 2.4s ease-in-out infinite;
+}
+
+body .monaco-workbench .monaco-editor .fleet-drop-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2;
+}
+
+body .monaco-workbench .monaco-editor .fleet-drop-particle {
+  position: absolute;
+  pointer-events: none;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  will-change: left, top, opacity;
+}
+
+body .monaco-workbench .monaco-editor .view-overlays .squiggly-error,
+body .monaco-workbench .monaco-editor .view-overlays .squiggly-warning {
+  border-bottom: none !important;
+}
+
+body .monaco-workbench .monaco-editor .view-overlays .squiggly-error::before,
+body .monaco-workbench .monaco-editor .view-overlays .squiggly-warning::before {
+  background: linear-gradient(
+    90deg,
+    rgba(176, 144, 240, 0.1) 0%,
+    rgba(255, 143, 171, 0.1) 100%
+  ) !important;
+  animation: fleet-squiggle-flicker 1.4s steps(2) infinite !important;
+}
+
+body .monaco-workbench .monaco-editor .view-overlays .squiggly-error::after,
+body .monaco-workbench .monaco-editor .view-overlays .squiggly-warning::after {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: 2px !important;
+  pointer-events: none !important;
+  background-image: linear-gradient(
+    90deg,
+    var(--fleet-glitch-violet) 0%,
+    var(--fleet-glitch-pink) 45%,
+    var(--fleet-glitch-violet) 90%,
+    var(--fleet-glitch-pink) 100%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: fleet-squiggle-shift 1.1s linear infinite,
+    fleet-squiggle-flicker 0.85s steps(3) infinite !important;
+  will-change: transform, opacity, background-position;
+}

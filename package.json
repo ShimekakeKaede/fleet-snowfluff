@@ -1,0 +1,42 @@
+{
+  "name": "fleet-snowfluff",
+  "displayName": "Fleet Snowfluff",
+  "description": "《鸣潮》飞行雪绒 — Python 定制暗色主题，可选 Vibrancy 毛玻璃与编辑器氛围（GIF 光标、打字飘落）。",
+  "version": "0.1.0",
+  "publisher": "fleet-snowfluff",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "keywords": [
+    "theme",
+    "color-theme",
+    "dark",
+    "cursor",
+    "wuthering-waves",
+    "鸣潮",
+    "飞行雪绒"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Fleet Snowfluff Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/fleet-snowfluff-dark.color-theme.json"
+      }
+    ],
+    "grammars": [
+      {
+        "scopeName": "fleet.python-import.injection",
+        "path": "./themes/fleet-python-import.tmLanguage.json",
+        "injectTo": ["source.python"]
+      }
+    ],
+    "configurationDefaults": {
+      "editor.semanticHighlighting.enabled": true
+    }
+  }
+}

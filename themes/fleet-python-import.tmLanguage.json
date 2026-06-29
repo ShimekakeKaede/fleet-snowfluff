@@ -1,0 +1,99 @@
+{
+  "information_for_contributors": [
+    "Fleet Snowfluff — Python import keyword + parenthesized import list scopes."
+  ],
+  "version": "1.1.0",
+  "name": "Fleet Python Import",
+  "scopeName": "fleet.python-import.injection",
+  "injectionSelector": "L:source.python",
+  "patterns": [
+    {
+      "comment": "from … import — always scope from/import (single-line & parenthesized prefix)",
+      "match": "(?x) \\b (from) \\s+ (?:[\\w.]+|'[^']*'|\"[^\"]*\") \\s+ (import) \\b",
+      "captures": {
+        "1": {
+          "name": "keyword.control.import.python"
+        },
+        "2": {
+          "name": "keyword.control.import.python"
+        }
+      }
+    },
+    {
+      "comment": "import pkg — module import statement",
+      "match": "(?x) ^ \\s* (import) \\s+ (?:[\\w.]+|'[^']*'|\"[^\"]*\")",
+      "captures": {
+        "1": {
+          "name": "keyword.control.import.python"
+        }
+      }
+    },
+    {
+      "name": "meta.fleet.import-list.parenthesized.python",
+      "begin": "(\\bfrom\\s+(?:[\\w.]+|'[^']*'|\"[^\"]*\")\\s+import\\s+)(\\()",
+      "beginCaptures": {
+        "2": {
+          "name": "punctuation.parenthesis.begin.python"
+        }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.parenthesis.end.python"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#fleet-import-symbol"
+        }
+      ]
+    },
+    {
+      "comment": "from pkg import name — single imported symbol (no parens)",
+      "match": "(?x) \\b import \\s+ ([A-Z][[:alpha:]]\\w*) \\s*$",
+      "captures": {
+        "1": {
+          "name": "entity.name.type.class.import.python"
+        }
+      }
+    },
+    {
+      "match": "(?x) \\b import \\s+ ([a-z_][[:alpha:]]\\w*) \\s*$",
+      "captures": {
+        "1": {
+          "name": "entity.name.function.import.python"
+        }
+      }
+    }
+  ],
+  "repository": {
+    "fleet-import-symbol": {
+      "patterns": [
+        {
+          "name": "keyword.control.import.python",
+          "match": "\\bas\\b"
+        },
+        {
+          "name": "punctuation.separator.import.python",
+          "match": ","
+        },
+        {
+          "match": "(?x) \\b ([A-Z][[:alpha:]]\\w*) \\b",
+          "captures": {
+            "1": {
+              "name": "entity.name.type.class.import.python"
+            }
+          }
+        },
+        {
+          "match": "(?x) \\b ([a-z_][[:alpha:]]\\w*) \\b",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.import.python"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

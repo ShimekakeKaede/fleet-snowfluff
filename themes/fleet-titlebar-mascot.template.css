@@ -1,0 +1,71 @@
+/* Fleet Snowfluff — title bar mascot (optional; setup-vibrancy.ps1 embeds GIF as data URI) */
+
+:root {
+  --fleet-titlebar-mascot: __FLEET_MASCOT_DATA_URI__;
+}
+
+/* Cursor no-titlebar — project name centered in auxiliary bar */
+body.no-titlebar-layout .monaco-workbench .part.auxiliarybar .auxiliary-bar-workspace-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+}
+
+body.no-titlebar-layout .monaco-workbench .part.auxiliarybar .auxiliary-bar-workspace-header::before,
+body.no-titlebar-layout .monaco-workbench .part.auxiliarybar .auxiliary-bar-workspace-header::after,
+.bc-instance-header-title-container::before,
+.bc-instance-header-title-container::after,
+.monaco-workbench .part.titlebar .window-title-text::before,
+.monaco-workbench .part.titlebar .window-title-text::after {
+  content: '' !important;
+  display: inline-block !important;
+  width: 20px !important;
+  height: 20px !important;
+  flex-shrink: 0 !important;
+  background-image: var(--fleet-titlebar-mascot) !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  image-rendering: pixelated !important;
+  image-rendering: crisp-edges !important;
+  pointer-events: none !important;
+  -webkit-app-region: no-drag !important;
+}
+
+.bc-instance-header-title-container {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.monaco-workbench .part.titlebar .window-title-text {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  vertical-align: middle !important;
+}
+
+/* Glyph margin — replace debug breakpoint dot with title bar mascot GIF */
+.monaco-editor .glyph-margin-widgets .cgmr.codicon-debug-breakpoint:not(.codicon-debug-breakpoint-disabled)::before,
+.monaco-editor .glyph-margin-widgets .cgmr.codicon-debug-breakpoint-conditional:not(.codicon-debug-breakpoint-disabled)::before {
+  content: '' !important;
+  display: none !important;
+}
+
+.monaco-editor .glyph-margin-widgets .cgmr.codicon-debug-breakpoint:not(.codicon-debug-breakpoint-disabled),
+.monaco-editor .glyph-margin-widgets .cgmr.codicon-debug-breakpoint-conditional:not(.codicon-debug-breakpoint-disabled) {
+  background-image: var(--fleet-titlebar-mascot) !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  image-rendering: pixelated !important;
+  image-rendering: crisp-edges !important;
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  color: transparent !important;
+  opacity: 1 !important;
+  transform: translateY(2.5px) !important;
+}

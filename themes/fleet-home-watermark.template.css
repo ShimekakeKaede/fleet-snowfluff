@@ -1,0 +1,58 @@
+/* Fleet Snowfluff — home screen watermark (setup-vibrancy.ps1 embeds GIF as data URI)
+ *
+ * Cursor renders the default logo via .letterpress::before { content: "\edd9" } (codicon),
+ * not background-image. Hide the pseudo-element and paint Aemeath_JUMP.gif on the box instead.
+ * Cursor dims the logo twice: .editor-group-watermark { opacity: 0.5 } AND
+ * .letterpress { opacity: 0.5 } — stacked to ~25% effective. Override both. */
+
+:root {
+  --fleet-home-watermark: __FLEET_HOME_WATERMARK_DATA_URI__;
+}
+
+body .monaco-workbench .part.editor > .content .editor-group-container.empty.active {
+  opacity: 1 !important;
+}
+
+body .monaco-workbench .part.editor > .content .editor-group-container > .editor-group-watermark,
+body .monaco-workbench .part.editor > .content .editor-group-container > .editor-group-watermark-wrapper > .editor-group-watermark {
+  opacity: 1 !important;
+}
+
+body .monaco-workbench .part.editor > .content .editor-group-container > .editor-group-watermark > .letterpress,
+body .monaco-workbench .part.editor > .content .editor-group-container > .editor-group-watermark-wrapper > .editor-group-watermark .letterpress,
+body .monaco-workbench .part.editor > .content .editor-group-container.empty > .editor-group-watermark > .letterpress,
+body .monaco-workbench .part.editor > .content .editor-group-container .editor-group-watermark .letterpress,
+body.monaco-workbench.vs-dark .part.editor > .content .editor-group-container .editor-group-watermark .letterpress {
+  /* Suppress Cursor codicon watermark */
+  font-size: 0 !important;
+  line-height: 0 !important;
+  font-family: inherit !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+
+  /* Custom GIF */
+  background-image: var(--fleet-home-watermark) !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  image-rendering: pixelated !important;
+  image-rendering: crisp-edges !important;
+
+  width: min(50vw, 50vh, 100px) !important;
+  height: min(50vw, 50vh, 100px) !important;
+  max-width: 100px !important;
+  max-height: 100px !important;
+  aspect-ratio: 1 / 1 !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+body .monaco-workbench .part.editor > .content .editor-group-container > .editor-group-watermark > .letterpress::before,
+body .monaco-workbench .part.editor > .content .editor-group-container > .editor-group-watermark > .letterpress:before,
+body .monaco-workbench .part.editor > .content .editor-group-container > .editor-group-watermark-wrapper > .editor-group-watermark .letterpress::before,
+body .monaco-workbench .part.editor > .content .editor-group-container > .editor-group-watermark-wrapper > .editor-group-watermark .letterpress:before,
+body .monaco-workbench .part.editor > .content .editor-group-container .editor-group-watermark .letterpress::before,
+body .monaco-workbench .part.editor > .content .editor-group-container .editor-group-watermark .letterpress:before {
+  content: none !important;
+  display: none !important;
+}
