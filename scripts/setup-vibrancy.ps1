@@ -42,6 +42,7 @@ if (-not (Test-Path $packageJsonPath)) { Write-Error "Missing: $packageJsonPath"
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 $maxEmbedBytes = 512000
 $fleetThemeLabel = 'Fleet Snowfluff Dark'
+$fleetThemeCustomizationKey = '[Fleet Snowfluff Dark]'
 
 $pkg = Get-Content $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $extensionFolderName = ('{0}.{1}-{2}' -f $pkg.publisher, $pkg.name, $pkg.version)
@@ -112,6 +113,54 @@ function Set-JsonProperty {
     }
 }
 
+function Clear-FleetGlobalSidebarColorOverrides {
+    param($ColorCustomizationsRoot)
+
+    # Global (all-theme) sideBar overrides stack on listBackground and survive theme switches.
+    foreach ($key in @(
+            'sideBar.background',
+            'sideBarTitle.background',
+            'sideBarStickyScroll.background',
+            'sideBarSectionHeader.background',
+            'editor.background'
+        )) {
+        $prop = $ColorCustomizationsRoot.PSObject.Properties[$key]
+        if ($prop) {
+            $ColorCustomizationsRoot.PSObject.Properties.Remove($prop.Name)
+        }
+    }
+}
+
+function Set-FleetThemeColorCustomizations {
+    param($ColorCustomizationsRoot)
+
+    $fleetCc = $ColorCustomizationsRoot.PSObject.Properties[$fleetThemeCustomizationKey]
+    if (-not $fleetCc) {
+        $themeObj = New-Object PSObject
+        $ColorCustomizationsRoot | Add-Member -NotePropertyName $fleetThemeCustomizationKey -NotePropertyValue $themeObj -Force
+        $fleetCc = $ColorCustomizationsRoot.PSObject.Properties[$fleetThemeCustomizationKey]
+    }
+
+    $themeObj = $fleetCc.Value
+    # Sidebar listBackground follows sideBar.background — keep transparent; tint from vibrancy CSS.
+    Set-JsonProperty $themeObj 'sideBar.background' '#00000000'
+    Set-JsonProperty $themeObj 'tree.tableOddRowsBackground' '#00000000'
+    Set-JsonProperty $themeObj 'terminal.background' '#000000B3'
+    Set-JsonProperty $themeObj 'panel.background' '#000000B3'
+
+    # Legacy Extensions workaround key — no longer used (use --disable-gpu-compositing).
+    $dropProp = $themeObj.PSObject.Properties['sideBar.dropBackground']
+    if ($dropProp) {
+        $themeObj.PSObject.Properties.Remove($dropProp.Name)
+    }
+
+    # Remove legacy wrong key (no brackets) if setup created it earlier.
+    $legacy = $ColorCustomizationsRoot.PSObject.Properties[$fleetThemeLabel]
+    if ($legacy) {
+        $ColorCustomizationsRoot.PSObject.Properties.Remove($legacy.Name)
+    }
+}
+
 function Merge-FleetSettings {
     param(
         [string]$SettingsPath,
@@ -138,16 +187,8 @@ function Merge-FleetSettings {
         $cc = New-Object PSObject
         Set-JsonProperty $settings 'workbench.colorCustomizations' $cc
     }
-    $themeCc = $cc.PSObject.Properties[$fleetThemeLabel]
-    if (-not $themeCc) {
-        $themeObj = New-Object PSObject
-        $themeObj | Add-Member -NotePropertyName 'terminal.background' -NotePropertyValue '#000000B3' -Force
-        $themeObj | Add-Member -NotePropertyName 'panel.background' -NotePropertyValue '#000000B3' -Force
-        $cc | Add-Member -NotePropertyName $fleetThemeLabel -NotePropertyValue $themeObj -Force
-    } else {
-        Set-JsonProperty $themeCc.Value 'terminal.background' '#000000B3'
-        Set-JsonProperty $themeCc.Value 'panel.background' '#000000B3'
-    }
+    Set-FleetThemeColorCustomizations -ColorCustomizationsRoot $cc
+    Clear-FleetGlobalSidebarColorOverrides -ColorCustomizationsRoot $cc
 
     $json = $settings | ConvertTo-Json -Depth 32
     [System.IO.File]::WriteAllText($SettingsPath, $json, $utf8NoBom)

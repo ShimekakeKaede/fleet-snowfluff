@@ -5,6 +5,11 @@
   "version": "0.1.0",
   "publisher": "fleet-snowfluff",
   "license": "MIT",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#111111",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -36,7 +41,15 @@
       }
     ],
     "configurationDefaults": {
-      "editor.semanticHighlighting.enabled": true
+      "editor.semanticHighlighting.enabled": true,
+      "workbench.colorCustomizations": {
+        "[Fleet Snowfluff Dark]": {
+          "sideBar.background": "#00000000",
+          "tree.tableOddRowsBackground": "#00000000",
+          "terminal.background": "#000000B3",
+          "panel.background": "#000000B3"
+        }
+      }
     }
   }
 }

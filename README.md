@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/aemeath/Aemeath_GLASS.gif" alt="Fleet Snowfluff — 飞行雪绒" width="280">
+</p>
+
 # Fleet Snowfluff
 
 《鸣潮》**飞行雪绒** — 面向 [Cursor](https://cursor.com) 的暗色编程主题（亦可在 [VS Code](https://code.visualstudio.com) 使用）。
@@ -59,6 +63,25 @@ cd fleet-snowfluff
 | 4 | 命令面板 → **Vibrancy: Reload** |
 | 5 | **完全退出** Cursor（含系统托盘图标） |
 | 6 | 重新打开 Cursor |
+
+### 推荐：关闭 GPU 合成启动（Vibrancy 更稳定）
+
+Fleet Snowfluff 搭配 Vibrancy 时，在 **开启 Chromium GPU 合成** 下，Extensions 视图偶发侧栏发灰、整窗像蒙一层雾（Explorer 等视图通常正常）。根因是 GPU 合成层与毛玻璃叠层的交互，**不是主题配色错误**。
+
+**推荐做法**：用 `--disable-gpu-compositing` 启动 Cursor（已验证可消除上述现象）。
+
+**Windows 快捷方式示例**
+
+1. 右键桌面 → **新建** → **快捷方式**
+2. 目标填写（按你的安装路径调整）：
+
+   ```
+   "C:\Users\<用户名>\AppData\Local\Programs\cursor\Cursor.exe" --disable-gpu-compositing
+   ```
+
+3. 之后始终用该快捷方式打开 Cursor
+
+可能略影响部分滚动/动画流畅度；终端可单独设 `terminal.integrated.gpuAcceleration: "off"`，与整窗关闭 GPU 合成是不同层级。更多说明见 [MAINTENANCE.md — GPU 合成与 Vibrancy](MAINTENANCE.md#gpu-合成与-vibrancy)。
 
 ### 日常更新
 

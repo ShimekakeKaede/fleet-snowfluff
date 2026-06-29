@@ -67,6 +67,8 @@
 | 注释 | `#6B7A8C` |
 | 数字 / 常量 | `#F6C343` |
 
+侧栏底色 `sideBar.background` 在主题与 `colorCustomizations` 中为 **`#00000000`**（透明）；半透明由 Vibrancy CSS 的 `--fleet-sidebar-content-tint` 绘制，避免 Extensions 列表在切换主题后重新叠一层 `listBackground`。
+
 ### Python 着色策略
 
 - **TextMate**（`.python` 作用域）+ **Pylance 语义**（`:python`）双层
@@ -132,11 +134,14 @@ vibrancy/
 
 | 文件 | 用途 |
 |------|------|
+| `Aemeath_GLASS.gif` | README 封面动图（不参与 setup 嵌入） |
 | `Aemeath_FORWARD.gif` | 编辑器 GIF 光标 → `fleet-editor-atmosphere.js` |
 | `Aemeath_GLASS_inline.gif` | Title bar mascot / 断点图标 → `fleet-titlebar-mascot.css` |
 | `Aemeath_JUMP.gif` | 欢迎页 Home 水印 → `fleet-home-watermark.css` |
 
-删除任一文件后重跑 setup，对应效果不再加载。
+扩展列表 / 市场页图标：`images/icon.png`（由 `Aemeath_GLASS.gif` 第 11 帧整数倍缩放至 250×250，居中于 256×256 透明画布；改源图后需手动重新生成）。
+
+删除 setup 依赖的动图后重跑 setup，对应效果不再加载。
 
 ### `dropings/` — 打字飘落图标
 
@@ -187,6 +192,21 @@ python scripts/optimize-titlebar-gif.py --input <源图.gif> --output assets/aem
 | 改了 `vibrancy/` 或 `assets/` 未生效 | setup → Vibrancy Reload → 冷启动（非仅 Reload Window） |
 | 叠加 JS 不执行 | Vibrancy Continued 升级后重跑 setup（重新 patch） |
 | IDE 升级后异常 | 重跑 `setup.ps1` → Reload → 冷启动 |
+| Extensions 侧栏发灰 / 全窗口「蒙一层」 | 见下方 [GPU 合成](#gpu-合成与-vibrancy) |
+
+### GPU 合成与 Vibrancy
+
+在 **开启 Chromium GPU 合成** 时，Extensions 视图（大面积 `monaco-list` + 可选 `.overlay`）与 Vibrancy 毛玻璃叠层可能发生 **合成层外溢**，表现为侧栏偏亮、甚至整窗发灰；Explorer 等 tree 视图通常正常。这是 Vibrancy + GPU 合成的已知交互，**不是主题色设错**。
+
+**推荐做法：** 用 `--disable-gpu-compositing` 启动 Cursor。Windows 快捷方式目标示例：
+
+```
+"C:\Users\<用户名>\AppData\Local\Programs\cursor\Cursor.exe" --disable-gpu-compositing
+```
+
+用户向安装说明见 [README — 关闭 GPU 合成启动](README.md#推荐关闭-gpu-合成启动vibrancy-更稳定)。
+
+关闭 GPU 合成可能略影响滚动/动画流畅度；`terminal.integrated.gpuAcceleration: off` 仅作用于集成终端，与整窗 `--disable-gpu-compositing` 是不同层级。
 
 ### 控制台验证
 
