@@ -365,48 +365,65 @@ body .monaco-workbench .part.panel {
   -webkit-mask-size: var(--fleet-act-icon-mask-size) var(--fleet-act-icon-mask-size) !important;
 }
 
-/* ── Primary sidebar — tint on part; headers opaque ── */
+/* ── Primary sidebar — tint on part; inner stack transparent ── */
 
-.monaco-workbench .part.sidebar,
-.monaco-workbench .part.sidebar.left,
-.monaco-workbench .part.sidebar.left#workbench\.parts\.sidebar,
-#workbench\.parts\.sidebar {
+body .monaco-workbench .part.sidebar,
+body .monaco-workbench .part.sidebar.left,
+body .monaco-workbench .part.sidebar.left#workbench\.parts\.sidebar,
+body #workbench\.parts\.sidebar {
   --vscode-sideBar-background: transparent !important;
   --vscode-sideBarSectionHeader-background: #111111 !important;
   --vscode-sideBarTitle-background: #111111 !important;
   --vscode-sideBarStickyScroll-background: #111111 !important;
+  --vscode-list-background: transparent !important;
+  --vscode-tree-tableOddRowsBackground: transparent !important;
+  --vscode-editor-background: transparent !important;
   background-color: var(--fleet-sidebar-content-tint) !important;
 }
 
-.monaco-workbench .part.sidebar > div,
-.monaco-workbench .part.sidebar > div > div,
-.monaco-workbench .part.sidebar > div > div > div,
-.monaco-workbench .part.sidebar > div > div > div > div,
-.monaco-workbench .part.sidebar > div > div > div > div > div,
-.monaco-workbench .part.sidebar > div > div > div > div > div:nth-child(2),
-.monaco-workbench .part.sidebar .content,
-.monaco-workbench .part.sidebar .content .monaco-split-view2,
-.monaco-workbench .part.sidebar .monaco-pane-view,
-.monaco-workbench .part.sidebar .monaco-pane-view .split-view-view,
-.monaco-workbench .part.sidebar .pane-body,
-.monaco-workbench .part.sidebar .explorer-folders-view,
-.monaco-workbench .part.sidebar .scm-view,
-.monaco-workbench .part.sidebar .search-view,
-.monaco-workbench .part.sidebar .extensions-viewlet,
-.monaco-workbench .part.sidebar .welcome-page,
-.monaco-workbench .part.sidebar .monaco-list,
-.monaco-workbench .part.sidebar .monaco-list .monaco-scrollable-element,
-.monaco-workbench .part.sidebar .monaco-list .monaco-list-row,
-.monaco-workbench .part.sidebar .monaco-tree,
-.monaco-workbench .part.sidebar .monaco-tree-sticky-container,
-.monaco-workbench .part.sidebar .monaco-tree-row {
+body .monaco-workbench .part.sidebar > div,
+body .monaco-workbench .part.sidebar > div > div,
+body .monaco-workbench .part.sidebar > div > div > div,
+body .monaco-workbench .part.sidebar > div > div > div > div,
+body .monaco-workbench .part.sidebar > div > div > div > div > div,
+body .monaco-workbench .part.sidebar > div > div > div > div > div:nth-child(2),
+body .monaco-workbench .part.sidebar .content,
+body .monaco-workbench .part.sidebar .content .monaco-split-view2,
+body .monaco-workbench .part.sidebar .monaco-pane-view,
+body .monaco-workbench .part.sidebar .monaco-pane-view .split-view-view,
+body .monaco-workbench .part.sidebar .pane-body,
+body .monaco-workbench .part.sidebar .explorer-folders-view,
+body .monaco-workbench .part.sidebar .scm-view,
+body .monaco-workbench .part.sidebar .search-view,
+body .monaco-workbench .part.sidebar .extensions-viewlet,
+body .monaco-workbench .part.sidebar .extensions-list,
+body .monaco-workbench .part.sidebar .extension-list-item,
+body .monaco-workbench .part.sidebar .extension,
+body .monaco-workbench .part.sidebar .extension-editor,
+body .monaco-workbench .part.sidebar .welcome-page,
+body .monaco-workbench .part.sidebar .monaco-list,
+body .monaco-workbench .part.sidebar .monaco-list .monaco-scrollable-element,
+body .monaco-workbench .part.sidebar .monaco-list .monaco-list-rows,
+body .monaco-workbench .part.sidebar .monaco-list .monaco-list-row,
+body .monaco-workbench .part.sidebar .monaco-table,
+body .monaco-workbench .part.sidebar .monaco-table > .monaco-split-view2,
+body .monaco-workbench .part.sidebar .monaco-table .monaco-list-row,
+body .monaco-workbench .part.sidebar .monaco-table-tr,
+body .monaco-workbench .part.sidebar .monaco-table-td,
+body .monaco-workbench .part.sidebar .monaco-tree,
+body .monaco-workbench .part.sidebar .monaco-tree .monaco-scrollable-element,
+body .monaco-workbench .part.sidebar .monaco-tree .monaco-tree-rows,
+body .monaco-workbench .part.sidebar .monaco-tree-sticky-container,
+body .monaco-workbench .part.sidebar .monaco-tree-row,
+body .monaco-workbench .part.sidebar #workbench\.view\.extensions {
+  background: transparent !important;
   background-color: transparent !important;
 }
 
-.monaco-workbench .part.sidebar .composite.title,
-.monaco-workbench .part.sidebar .pane-header,
-.monaco-workbench .part.sidebar .pane-header .pane-header,
-.monaco-workbench .part.sidebar .title {
+body .monaco-workbench .part.sidebar .composite.title,
+body .monaco-workbench .part.sidebar .pane-header,
+body .monaco-workbench .part.sidebar .pane-header .pane-header,
+body .monaco-workbench .part.sidebar .title {
   background-color: #111111 !important;
 }
 

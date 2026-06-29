@@ -39,7 +39,7 @@
     "list.focusOutline": "#888888",
     "list.deemphasizedForeground": "#888888",
     "listFilterWidget.background": "#111111",
-    "tree.tableOddRowsBackground": "#111111",
+    "tree.tableOddRowsBackground": "#00000000",
     "activityBar.background": "#111111",
     "activityBar.foreground": "#D0D0D0",
     "activityBar.inactiveForeground": "#888888",
