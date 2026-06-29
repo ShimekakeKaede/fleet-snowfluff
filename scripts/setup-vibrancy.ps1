@@ -1,30 +1,35 @@
-# Install Fleet Snowfluff Vibrancy assets into the Cursor user directory (stable paths).
-# Usage: from repo root  .\scripts\setup-vibrancy.ps1
+# Fleet Snowfluff — install theme extension + Vibrancy overlay + recommended settings.
+# Usage: from repo root  .\scripts\setup.ps1
+#        (alias)     .\scripts\setup-vibrancy.ps1 [-CopyExtension] [-VsCodeToo]
 #
-# Copies themes/* sources → %APPDATA%\Cursor\User\fleet-snowfluff\
-# Generates: fleet-editor-atmosphere.js, fleet-titlebar-mascot.css, fleet-home-watermark.css
-# Patches: Vibrancy Continued runtime (JS imports run inline under Cursor CSP)
+# Deploys vibrancy/* → %APPDATA%\Cursor\User\fleet-snowfluff\
+# Links (or copies) this repo as a local Cursor/VS Code extension (no VSIX).
+# Merges recommended keys into User\settings.json.
+
+param(
+    [switch]$CopyExtension,
+    [switch]$VsCodeToo
+)
 
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$cssSource = Join-Path $projectRoot 'themes\vibrancy-opaque-chrome.css'
-$jsSource = Join-Path $projectRoot 'themes\fleet-activity-global-menu.js'
-$lineNumbersJsSource = Join-Path $projectRoot 'themes\fleet-editor-line-numbers.js'
-$atmosphereTemplate = Join-Path $projectRoot 'themes\fleet-editor-atmosphere.template.js'
-$mascotTemplate = Join-Path $projectRoot 'themes\fleet-titlebar-mascot.template.css'
-$homeWatermarkTemplate = Join-Path $projectRoot 'themes\fleet-home-watermark.template.css'
+$vibrancyRoot = Join-Path $projectRoot 'vibrancy'
+$cssSource = Join-Path $vibrancyRoot 'css\opaque-chrome.css'
+$jsSource = Join-Path $vibrancyRoot 'js\activity-global-menu.js'
+$lineNumbersJsSource = Join-Path $vibrancyRoot 'js\editor-line-numbers.js'
+$atmosphereTemplate = Join-Path $vibrancyRoot 'js\editor-atmosphere.template.js'
+$mascotTemplate = Join-Path $vibrancyRoot 'templates\titlebar-mascot.css'
+$homeWatermarkTemplate = Join-Path $vibrancyRoot 'templates\home-watermark.css'
 $assetsDir = Join-Path $projectRoot 'assets'
 $aemeathDir = Join-Path $assetsDir 'aemeath'
 $dropingsDir = Join-Path $assetsDir 'dropings'
-$mascotGlassSource = Join-Path $aemeathDir 'Aemeath_GLASS.gif'
-$mascotGlassTitlebarSource = Join-Path $aemeathDir 'Aemeath_GLASS_titlebar.gif'
-$mascotFlySource = Join-Path $aemeathDir 'Aemeath_FLY.gif'
-$cursorInlineSource = Join-Path $aemeathDir 'Aemeath_FLY_inline.gif'
+$mascotGlassInlineSource = Join-Path $aemeathDir 'Aemeath_GLASS_inline.gif'
+$cursorForwardSource = Join-Path $aemeathDir 'Aemeath_FORWARD.gif'
 $jumpSource = Join-Path $aemeathDir 'Aemeath_JUMP.gif'
-$optimizeScript = Join-Path $projectRoot 'scripts\optimize-titlebar-gif.py'
 $patchVanillaPath = Join-Path $projectRoot 'scripts\patches\vibrancy-injectHTML-vanilla.txt'
 $patchFleetPath = Join-Path $projectRoot 'scripts\patches\vibrancy-injectHTML-fleet.mjs'
+$packageJsonPath = Join-Path $projectRoot 'package.json'
 
 if (-not (Test-Path $cssSource)) { Write-Error "Missing: $cssSource" }
 if (-not (Test-Path $jsSource)) { Write-Error "Missing: $jsSource" }
@@ -32,22 +37,14 @@ if (-not (Test-Path $lineNumbersJsSource)) { Write-Error "Missing: $lineNumbersJ
 if (-not (Test-Path $atmosphereTemplate)) { Write-Error "Missing: $atmosphereTemplate" }
 if (-not (Test-Path $patchVanillaPath)) { Write-Error "Missing: $patchVanillaPath" }
 if (-not (Test-Path $patchFleetPath)) { Write-Error "Missing: $patchFleetPath" }
+if (-not (Test-Path $packageJsonPath)) { Write-Error "Missing: $packageJsonPath" }
 
-$targetDir = Join-Path $env:APPDATA 'Cursor\User\fleet-snowfluff'
-$cssTarget = Join-Path $targetDir 'vibrancy-opaque-chrome.css'
-$jsTarget = Join-Path $targetDir 'fleet-activity-global-menu.js'
-$lineNumbersJsTarget = Join-Path $targetDir 'fleet-editor-line-numbers.js'
-$atmosphereJsTarget = Join-Path $targetDir 'fleet-editor-atmosphere.js'
-$mascotCssTarget = Join-Path $targetDir 'fleet-titlebar-mascot.css'
-$homeWatermarkCssTarget = Join-Path $targetDir 'fleet-home-watermark.css'
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 $maxEmbedBytes = 512000
+$fleetThemeLabel = 'Fleet Snowfluff Dark'
 
-New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
-
-Copy-Item -Force $cssSource $cssTarget
-Copy-Item -Force $jsSource $jsTarget
-Copy-Item -Force $lineNumbersJsSource $lineNumbersJsTarget
+$pkg = Get-Content $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$extensionFolderName = ('{0}.{1}-{2}' -f $pkg.publisher, $pkg.name, $pkg.version)
 
 function Get-FleetDataUri {
     param([string]$Path)
@@ -62,9 +59,153 @@ function Get-FleetDataUri {
     return ('data:{0};base64,{1}' -f $mime, [Convert]::ToBase64String($bytes))
 }
 
+function Install-FleetThemeExtension {
+    param(
+        [string]$ExtensionsRoot,
+        [string]$Mode
+    )
+    if (-not (Test-Path $ExtensionsRoot)) {
+        New-Item -ItemType Directory -Force -Path $ExtensionsRoot | Out-Null
+    }
+
+    Get-ChildItem $ExtensionsRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like 'fleet-snowfluff.fleet-snowfluff-*' } |
+        ForEach-Object { Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
+
+    $dest = Join-Path $ExtensionsRoot $extensionFolderName
+
+    if ($Mode -eq 'copy') {
+        New-Item -ItemType Directory -Force -Path $dest | Out-Null
+        Copy-Item -Force $packageJsonPath (Join-Path $dest 'package.json')
+        $license = Join-Path $projectRoot 'LICENSE'
+        if (Test-Path $license) { Copy-Item -Force $license (Join-Path $dest 'LICENSE') }
+        Copy-Item -Force (Join-Path $projectRoot 'themes') (Join-Path $dest 'themes') -Recurse
+        Write-Host "Theme extension (copy): $dest"
+        return
+    }
+
+    if (Test-Path $dest) { Remove-Item $dest -Force -ErrorAction SilentlyContinue }
+    try {
+        New-Item -ItemType Junction -Path $dest -Target $projectRoot | Out-Null
+        Write-Host "Theme extension (junction → repo): $dest"
+    } catch {
+        Write-Warning "Junction failed ($($_.Exception.Message)); falling back to copy."
+        Install-FleetThemeExtension -ExtensionsRoot $ExtensionsRoot -Mode 'copy'
+    }
+}
+
+function Read-SettingsJson {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { return New-Object PSObject }
+    $raw = [System.IO.File]::ReadAllText($Path, $utf8NoBom)
+    if ([string]::IsNullOrWhiteSpace($raw)) { return New-Object PSObject }
+    return ($raw | ConvertFrom-Json)
+}
+
+function Set-JsonProperty {
+    param($Object, [string]$Name, $Value)
+    $existing = $Object.PSObject.Properties[$Name]
+    if ($existing) {
+        $existing.Value = $Value
+    } else {
+        $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value -Force
+    }
+}
+
+function Merge-FleetSettings {
+    param(
+        [string]$SettingsPath,
+        [string[]]$ImportPaths
+    )
+
+    $settings = Read-SettingsJson -Path $SettingsPath
+    $settingsDir = Split-Path -Parent $SettingsPath
+    if (-not (Test-Path $settingsDir)) {
+        New-Item -ItemType Directory -Force -Path $settingsDir | Out-Null
+    }
+
+    Set-JsonProperty $settings 'workbench.colorTheme' $fleetThemeLabel
+    Set-JsonProperty $settings 'workbench.activityBar.orientation' 'vertical'
+    Set-JsonProperty $settings 'window.titleBarStyle' 'custom'
+    Set-JsonProperty $settings 'vscode_vibrancy.opacity' 0.7
+    Set-JsonProperty $settings 'vscode_vibrancy.backgroundOverride' '#000000'
+    Set-JsonProperty $settings 'vscode_vibrancy.enableAutoRefresh' $false
+    Set-JsonProperty $settings 'vscode_vibrancy.disableFramelessWindow' $true
+    Set-JsonProperty $settings 'vscode_vibrancy.imports' @($ImportPaths)
+
+    $cc = $settings.'workbench.colorCustomizations'
+    if (-not $cc) {
+        $cc = New-Object PSObject
+        Set-JsonProperty $settings 'workbench.colorCustomizations' $cc
+    }
+    $themeCc = $cc.PSObject.Properties[$fleetThemeLabel]
+    if (-not $themeCc) {
+        $themeObj = New-Object PSObject
+        $themeObj | Add-Member -NotePropertyName 'terminal.background' -NotePropertyValue '#000000B3' -Force
+        $themeObj | Add-Member -NotePropertyName 'panel.background' -NotePropertyValue '#000000B3' -Force
+        $cc | Add-Member -NotePropertyName $fleetThemeLabel -NotePropertyValue $themeObj -Force
+    } else {
+        Set-JsonProperty $themeCc.Value 'terminal.background' '#000000B3'
+        Set-JsonProperty $themeCc.Value 'panel.background' '#000000B3'
+    }
+
+    $json = $settings | ConvertTo-Json -Depth 32
+    [System.IO.File]::WriteAllText($SettingsPath, $json, $utf8NoBom)
+    Write-Host "Updated settings: $SettingsPath"
+}
+
+function Get-FleetImportPaths {
+    param(
+        [string]$FleetDir,
+        [bool]$AtmosphereEnabled,
+        [bool]$MascotEnabled,
+        [bool]$HomeWatermarkEnabled
+    )
+    $paths = [System.Collections.Generic.List[string]]::new()
+    [void]$paths.Add(((Join-Path $FleetDir 'vibrancy-opaque-chrome.css') -replace '\\', '/'))
+    [void]$paths.Add(((Join-Path $FleetDir 'fleet-activity-global-menu.js') -replace '\\', '/'))
+    [void]$paths.Add(((Join-Path $FleetDir 'fleet-editor-line-numbers.js') -replace '\\', '/'))
+    if ($AtmosphereEnabled) {
+        [void]$paths.Add(((Join-Path $FleetDir 'fleet-editor-atmosphere.js') -replace '\\', '/'))
+    }
+    if ($MascotEnabled) {
+        [void]$paths.Add(((Join-Path $FleetDir 'fleet-titlebar-mascot.css') -replace '\\', '/'))
+    }
+    if ($HomeWatermarkEnabled) {
+        [void]$paths.Add(((Join-Path $FleetDir 'fleet-home-watermark.css') -replace '\\', '/'))
+    }
+    return $paths
+}
+
+# ── Theme extension ─────────────────────────────────────────────────────────
+
+$extMode = if ($CopyExtension) { 'copy' } else { 'junction' }
+$cursorExtRoot = Join-Path $env:USERPROFILE '.cursor\extensions'
+Install-FleetThemeExtension -ExtensionsRoot $cursorExtRoot -Mode $extMode
+
+if ($VsCodeToo) {
+    $codeExtRoot = Join-Path $env:USERPROFILE '.vscode\extensions'
+    Install-FleetThemeExtension -ExtensionsRoot $codeExtRoot -Mode $extMode
+}
+
+# ── Vibrancy assets ─────────────────────────────────────────────────────────
+
+$targetDir = Join-Path $env:APPDATA 'Cursor\User\fleet-snowfluff'
+$cssTarget = Join-Path $targetDir 'vibrancy-opaque-chrome.css'
+$jsTarget = Join-Path $targetDir 'fleet-activity-global-menu.js'
+$lineNumbersJsTarget = Join-Path $targetDir 'fleet-editor-line-numbers.js'
+$atmosphereJsTarget = Join-Path $targetDir 'fleet-editor-atmosphere.js'
+$mascotCssTarget = Join-Path $targetDir 'fleet-titlebar-mascot.css'
+$homeWatermarkCssTarget = Join-Path $targetDir 'fleet-home-watermark.css'
+
+New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
+Copy-Item -Force $cssSource $cssTarget
+Copy-Item -Force $jsSource $jsTarget
+Copy-Item -Force $lineNumbersJsSource $lineNumbersJsTarget
+
 $atmosphereEnabled = $false
-if ((Test-Path $atmosphereTemplate) -and (Test-Path $cursorInlineSource)) {
-    $cursorUri = Get-FleetDataUri $cursorInlineSource
+if ((Test-Path $atmosphereTemplate) -and (Test-Path $cursorForwardSource)) {
+    $cursorUri = Get-FleetDataUri $cursorForwardSource
     $dropUris = [System.Collections.Generic.List[string]]::new()
     if (Test-Path $dropingsDir) {
         Get-ChildItem $dropingsDir -File |
@@ -77,19 +218,15 @@ if ((Test-Path $atmosphereTemplate) -and (Test-Path $cursorInlineSource)) {
         $escaped = $uri.Replace('\', '\\').Replace('"', '\"')
         [void]$dropParts.Add('"' + $escaped + '"')
     }
-    if ($dropParts.Count -eq 0) {
-        $dropJson = '[]'
-    } else {
-        $dropJson = '[' + ($dropParts -join ',') + ']'
-    }
+    $dropJson = if ($dropParts.Count -eq 0) { '[]' } else { '[' + ($dropParts -join ',') + ']' }
     $atmosphereJs = [System.IO.File]::ReadAllText($atmosphereTemplate, [System.Text.Encoding]::UTF8)
     $atmosphereJs = $atmosphereJs.Replace('__FLEET_CURSOR_GIF_DATA_URI__', $cursorUri)
     $atmosphereJs = $atmosphereJs.Replace('__FLEET_DROPING_SPRITES_JSON__', $dropJson)
     [System.IO.File]::WriteAllText($atmosphereJsTarget, $atmosphereJs, $utf8NoBom)
     $atmosphereEnabled = $true
-    Write-Host "Atmosphere JS: cursor Aemeath_FLY_inline.gif, droppings $($dropUris.Count)"
+    Write-Host "Atmosphere JS: cursor Aemeath_FORWARD.gif, droppings $($dropUris.Count)"
 } else {
-    Write-Host 'Atmosphere JS skipped (missing template or assets/aemeath/Aemeath_FLY_inline.gif).'
+    Write-Host 'Atmosphere JS skipped — add assets/aemeath/Aemeath_FORWARD.gif for GIF cursor (see MAINTENANCE.md).'
 }
 
 function Patch-VibrancyScriptExecution {
@@ -111,7 +248,7 @@ function Patch-VibrancyScriptExecution {
     }
 
     if (-not $extDir) {
-        Write-Warning 'Vibrancy Continued not found. Install the extension, then re-run this script.'
+        Write-Warning 'Vibrancy Continued not found. Install it from the marketplace, then re-run setup.'
         return $false
     }
 
@@ -150,144 +287,90 @@ function Patch-VibrancyScriptExecution {
 Patch-VibrancyScriptExecution | Out-Null
 
 $mascotEnabled = $false
-$mascotImportPath = $null
-$embedName = $null
 
-if (Test-Path $mascotTemplate) {
-    if (-not (Test-Path $mascotGlassTitlebarSource) -and (Test-Path $optimizeScript) -and (Test-Path $mascotGlassSource)) {
-        $python = Get-Command python -ErrorAction SilentlyContinue
-        if ($python) {
-            Write-Host 'Generating Aemeath_GLASS_titlebar.gif...'
-            & $python.Source $optimizeScript
-        }
-    }
-
-    $embedSource = $null
-    if (Test-Path $mascotFlySource) {
-        $embedSource = $mascotFlySource
-        $embedName = 'Aemeath_FLY.gif'
-    }
-    if (Test-Path $mascotGlassTitlebarSource) {
-        $embedSource = $mascotGlassTitlebarSource
-        $embedName = 'Aemeath_GLASS_titlebar.gif'
-    } elseif (Test-Path $mascotGlassSource) {
-        $glassSize = (Get-Item $mascotGlassSource).Length
-        if ($glassSize -le $maxEmbedBytes) {
-            $embedSource = $mascotGlassSource
-            $embedName = 'Aemeath_GLASS.gif'
-        }
-    }
-
-    if ($embedSource) {
-        $gifBytes = [System.IO.File]::ReadAllBytes($embedSource)
-        $gifBase64 = [Convert]::ToBase64String($gifBytes)
-        $dataUri = 'url("data:image/gif;base64,' + $gifBase64 + '")'
+if ((Test-Path $mascotTemplate) -and (Test-Path $mascotGlassInlineSource)) {
+    $gifBytes = [System.IO.File]::ReadAllBytes($mascotGlassInlineSource)
+    if ($gifBytes.Length -gt $maxEmbedBytes) {
+        Write-Warning "Aemeath_GLASS_inline.gif exceeds ${maxEmbedBytes} bytes; title bar mascot skipped."
+    } else {
+        $dataUri = 'url("data:image/gif;base64,' + [Convert]::ToBase64String($gifBytes) + '")'
         $mascotCss = [System.IO.File]::ReadAllText($mascotTemplate, [System.Text.Encoding]::UTF8)
         $mascotCss = $mascotCss.Replace('__FLEET_MASCOT_DATA_URI__', $dataUri)
         [System.IO.File]::WriteAllText($mascotCssTarget, $mascotCss, $utf8NoBom)
         $mascotEnabled = $true
-        $mascotImportPath = ($mascotCssTarget -replace '\\', '/')
-    } else {
-        Write-Host 'Title bar mascot skipped (no GIF under assets/aemeath/).'
+        Write-Host 'Mascot CSS (Aemeath_GLASS_inline.gif)'
     }
+} elseif (Test-Path $mascotTemplate) {
+    Write-Host 'Title bar mascot skipped — optional assets/aemeath/Aemeath_GLASS_inline.gif.'
 }
 
 $homeWatermarkEnabled = $false
-$homeWatermarkImportPath = $null
 
 if ((Test-Path $homeWatermarkTemplate) -and (Test-Path $jumpSource)) {
     $jumpBytes = [System.IO.File]::ReadAllBytes($jumpSource)
     if ($jumpBytes.Length -gt $maxEmbedBytes) {
         Write-Warning "Aemeath_JUMP.gif exceeds ${maxEmbedBytes} bytes; home watermark skipped."
     } else {
-        $jumpBase64 = [Convert]::ToBase64String($jumpBytes)
-        $jumpDataUri = 'url("data:image/gif;base64,' + $jumpBase64 + '")'
+        $jumpDataUri = 'url("data:image/gif;base64,' + [Convert]::ToBase64String($jumpBytes) + '")'
         $homeWatermarkCss = [System.IO.File]::ReadAllText($homeWatermarkTemplate, [System.Text.Encoding]::UTF8)
         $homeWatermarkCss = $homeWatermarkCss.Replace('__FLEET_HOME_WATERMARK_DATA_URI__', $jumpDataUri)
         [System.IO.File]::WriteAllText($homeWatermarkCssTarget, $homeWatermarkCss, $utf8NoBom)
         $homeWatermarkEnabled = $true
-        $homeWatermarkImportPath = ($homeWatermarkCssTarget -replace '\\', '/')
+        Write-Host 'Home watermark CSS (Aemeath_JUMP.gif)'
     }
 } elseif (Test-Path $homeWatermarkTemplate) {
-    Write-Host 'Home watermark skipped (missing assets/aemeath/Aemeath_JUMP.gif).'
+    Write-Host 'Home watermark skipped — optional assets/aemeath/Aemeath_JUMP.gif.'
 }
 
-$cssImportPath = ($cssTarget -replace '\\', '/')
-$jsImportPath = ($jsTarget -replace '\\', '/')
-$lineNumbersJsImportPath = ($lineNumbersJsTarget -replace '\\', '/')
-$atmosphereJsImportPath = ($atmosphereJsTarget -replace '\\', '/')
+$importPaths = Get-FleetImportPaths `
+    -FleetDir $targetDir `
+    -AtmosphereEnabled $atmosphereEnabled `
+    -MascotEnabled $mascotEnabled `
+    -HomeWatermarkEnabled $homeWatermarkEnabled
 
-$settingsPath = Join-Path $env:APPDATA 'Cursor\User\settings.json'
-if (Test-Path $settingsPath) {
+$cursorSettings = Join-Path $env:APPDATA 'Cursor\User\settings.json'
+try {
+    Merge-FleetSettings -SettingsPath $cursorSettings -ImportPaths $importPaths
+} catch {
+    Write-Warning "Could not update Cursor settings.json: $_"
+}
+
+if ($VsCodeToo) {
+    $codeSettings = Join-Path $env:APPDATA 'Code\User\settings.json'
+    $codeFleetDir = Join-Path $env:APPDATA 'Code\User\fleet-snowfluff'
+    if (-not (Test-Path $codeFleetDir)) { New-Item -ItemType Directory -Force -Path $codeFleetDir | Out-Null }
+    Copy-Item -Force $cssTarget (Join-Path $codeFleetDir 'vibrancy-opaque-chrome.css')
+    Copy-Item -Force $jsTarget (Join-Path $codeFleetDir 'fleet-activity-global-menu.js')
+    Copy-Item -Force $lineNumbersJsTarget (Join-Path $codeFleetDir 'fleet-editor-line-numbers.js')
+    if ($atmosphereEnabled) { Copy-Item -Force $atmosphereJsTarget (Join-Path $codeFleetDir 'fleet-editor-atmosphere.js') }
+    if ($mascotEnabled) { Copy-Item -Force $mascotCssTarget (Join-Path $codeFleetDir 'fleet-titlebar-mascot.css') }
+    if ($homeWatermarkEnabled) { Copy-Item -Force $homeWatermarkCssTarget (Join-Path $codeFleetDir 'fleet-home-watermark.css') }
+    $codeImports = Get-FleetImportPaths -FleetDir $codeFleetDir -AtmosphereEnabled $atmosphereEnabled -MascotEnabled $mascotEnabled -HomeWatermarkEnabled $homeWatermarkEnabled
     try {
-        $settingsRaw = [System.IO.File]::ReadAllText($settingsPath, [System.Text.Encoding]::UTF8)
-        $settings = $settingsRaw | ConvertFrom-Json
-        $imports = @($settings.'vscode_vibrancy.imports')
-        $desired = [System.Collections.Generic.List[string]]::new()
-        [void]$desired.Add($cssImportPath)
-        [void]$desired.Add($jsImportPath)
-        [void]$desired.Add($lineNumbersJsImportPath)
-        if ($atmosphereEnabled) { [void]$desired.Add($atmosphereJsImportPath) }
-        if ($mascotEnabled) { [void]$desired.Add($mascotImportPath) }
-        if ($homeWatermarkEnabled) { [void]$desired.Add($homeWatermarkImportPath) }
-
-        $needsUpdate = $false
-        foreach ($path in $desired) {
-            if ($imports -notcontains $path) {
-                $needsUpdate = $true
-                break
-            }
-        }
-
-        if ($needsUpdate) {
-            $merged = [System.Collections.Generic.List[string]]::new()
-            foreach ($path in $desired) {
-                if (-not $merged.Contains($path)) { [void]$merged.Add($path) }
-            }
-            foreach ($path in $imports) {
-                if ($path -and (-not $merged.Contains($path))) {
-                    [void]$merged.Add($path)
-                }
-            }
-            $settings.'vscode_vibrancy.imports' = @($merged)
-            $updatedJson = $settings | ConvertTo-Json -Depth 20
-            [System.IO.File]::WriteAllText($settingsPath, $updatedJson, $utf8NoBom)
-            Write-Host 'Updated vscode_vibrancy.imports in settings.json.'
-        }
+        Merge-FleetSettings -SettingsPath $codeSettings -ImportPaths $codeImports
     } catch {
-        Write-Warning "Could not update settings.json: $_"
+        Write-Warning "Could not update VS Code settings.json: $_"
     }
 }
 
+# ── Summary ─────────────────────────────────────────────────────────────────
+
 Write-Host ''
-Write-Host 'Installed:'
-Write-Host "  CSS:  $cssTarget"
-Write-Host "  JS:   $jsTarget"
-Write-Host "  Line numbers JS: $lineNumbersJsTarget"
-if ($atmosphereEnabled) {
-    Write-Host "  Atmosphere JS: $atmosphereJsTarget"
-}
-if ($mascotEnabled) {
-    Write-Host "  Mascot CSS ($embedName): $mascotCssTarget"
-}
-if ($homeWatermarkEnabled) {
-    Write-Host "  Home watermark CSS (Aemeath_JUMP.gif): $homeWatermarkCssTarget"
-}
+Write-Host '=== Fleet Snowfluff installed ==='
 Write-Host ''
-Write-Host 'Add to vscode_vibrancy.imports (forward slashes on Windows):'
+Write-Host 'Deployed overlay:'
+Write-Host "  $targetDir"
 Write-Host ''
-Write-Host '  "vscode_vibrancy.imports": ['
-$importLines = [System.Collections.Generic.List[string]]::new()
-[void]$importLines.Add($cssImportPath)
-[void]$importLines.Add($jsImportPath)
-[void]$importLines.Add($lineNumbersJsImportPath)
-if ($atmosphereEnabled) { [void]$importLines.Add($atmosphereJsImportPath) }
-if ($mascotEnabled) { [void]$importLines.Add($mascotImportPath) }
-if ($homeWatermarkEnabled) { [void]$importLines.Add($homeWatermarkImportPath) }
-for ($i = 0; $i -lt $importLines.Count; $i++) {
-    $comma = if ($i -lt $importLines.Count - 1) { ',' } else { '' }
-    Write-Host ('    "' + $importLines[$i] + '"' + $comma)
+Write-Host 'Next steps (first time):'
+Write-Host '  1. Command Palette → Vibrancy: Enable'
+Write-Host '  2. Command Palette → Vibrancy: Reload'
+Write-Host '  3. Fully quit Cursor (tray icon too), then start again'
+Write-Host ''
+Write-Host 'After git pull / local edits:'
+Write-Host '  Re-run .\scripts\setup.ps1 → Vibrancy: Reload → cold start'
+Write-Host '  (Theme junction points at this repo; Reload Window picks up theme JSON changes.)'
+Write-Host ''
+if (-not $atmosphereEnabled) {
+    Write-Host 'Optional: add GIF assets per MAINTENANCE.md, then re-run setup for cursor / mascot / watermark.'
+    Write-Host ''
 }
-Write-Host '  ]'
-Write-Host ''
-Write-Host 'Then: Vibrancy Reload, then fully quit and restart Cursor.'

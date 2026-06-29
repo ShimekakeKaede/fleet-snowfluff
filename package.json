@@ -1,7 +1,7 @@
 {
   "name": "fleet-snowfluff",
   "displayName": "Fleet Snowfluff",
-  "description": "《鸣潮》飞行雪绒 — Python 定制暗色主题，可选 Vibrancy 毛玻璃与编辑器氛围（GIF 光标、打字飘落）。",
+  "description": "《鸣潮》飞行雪绒 — 克隆仓库后运行 scripts/setup.ps1 即可本地安装完整体验（主题 + Vibrancy 叠加）。",
   "version": "0.1.0",
   "publisher": "fleet-snowfluff",
   "license": "MIT",

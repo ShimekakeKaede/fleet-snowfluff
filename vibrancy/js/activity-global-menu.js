@@ -72,12 +72,22 @@
     }
   }
 
+  var observerRaf = 0;
+
   function scheduleSync() {
     sync();
     requestAnimationFrame(sync);
     setTimeout(sync, 0);
     setTimeout(sync, 50);
     setTimeout(sync, 200);
+  }
+
+  function scheduleObserverSync() {
+    if (observerRaf) return;
+    observerRaf = requestAnimationFrame(function () {
+      observerRaf = 0;
+      sync();
+    });
   }
 
   function onPointerDown(event) {
@@ -96,7 +106,7 @@
     scheduleSync();
   }
 
-  var observer = new MutationObserver(scheduleSync);
+  var observer = new MutationObserver(scheduleObserverSync);
 
   function start() {
     if (!document.querySelector('.monaco-workbench')) {

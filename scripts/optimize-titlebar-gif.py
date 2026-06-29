@@ -5,9 +5,9 @@ Pixel art must use integer scale factors only (e.g. 1000px -> 50px = /20).
 Bilinear/bicubic scaling blurs pixels; non-integer ratios stretch pixels unevenly.
 
 Usage:
-  python scripts/optimize-titlebar-gif.py
-  python scripts/optimize-titlebar-gif.py --max-size 64
-  python scripts/optimize-titlebar-gif.py --input assets/aemeath/Aemeath_GLASS.gif --output assets/aemeath/Aemeath_GLASS_titlebar.gif
+  python scripts/optimize-titlebar-gif.py --input path/to/source.gif
+  python scripts/optimize-titlebar-gif.py --input path/to/source.gif --max-size 64
+  python scripts/optimize-titlebar-gif.py --input path/to/source.gif --output assets/aemeath/Aemeath_GLASS_inline.gif
 """
 
 from __future__ import annotations
@@ -77,14 +77,14 @@ def main() -> int:
     parser.add_argument(
         "--input",
         type=Path,
-        default=project_root / "assets" / "aemeath" / "Aemeath_GLASS.gif",
-        help="Source GIF (default: assets/aemeath/Aemeath_GLASS.gif)",
+        required=True,
+        help="Source GIF (any size)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=project_root / "assets" / "aemeath" / "Aemeath_GLASS_titlebar.gif",
-        help="Output GIF (default: assets/aemeath/Aemeath_GLASS_titlebar.gif)",
+        default=project_root / "assets" / "aemeath" / "Aemeath_GLASS_inline.gif",
+        help="Output GIF (default: assets/aemeath/Aemeath_GLASS_inline.gif)",
     )
     parser.add_argument(
         "--max-size",

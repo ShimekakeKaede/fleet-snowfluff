@@ -22,9 +22,27 @@
   var lastSpawnAt = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
   var lastCompositionData = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
   var editorObservers = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+  var editorCursorState = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+  var dropSpriteMeta = Object.create(null);
+  var DROP_REF_MAX_DIM = 30;
+  var DROP_DISPLAY_MIN = 12;
+  var DROP_DISPLAY_MAX = 22;
+  var CURSOR_HIDE_GRACE_MS = 150;
 
   if (!CURSOR_GIF || CURSOR_GIF.indexOf('__FLEET_') === 0) return;
   if (!DROP_SPRITES || !DROP_SPRITES.length) DROP_SPRITES = [];
+
+  DROP_SPRITES.forEach(function (url) {
+    var probe = new Image();
+    probe.onload = function () {
+      dropSpriteMeta[url] = {
+        w: probe.naturalWidth || DROP_REF_MAX_DIM,
+        h: probe.naturalHeight || DROP_REF_MAX_DIM,
+        maxDim: Math.max(probe.naturalWidth || DROP_REF_MAX_DIM, probe.naturalHeight || DROP_REF_MAX_DIM)
+      };
+    };
+    probe.src = url;
+  });
 
   document.documentElement.classList.add('fleet-atmosphere-cursor');
 
@@ -67,12 +85,40 @@
     };
   }
 
+  function getEditorCursorState(editorRoot) {
+    if (!editorCursorState) return { sprites: [], layouts: [], hideTimer: 0 };
+    var state = editorCursorState.get(editorRoot);
+    if (!state) {
+      state = { sprites: [], layouts: [], hideTimer: 0 };
+      editorCursorState.set(editorRoot, state);
+    }
+    return state;
+  }
+
+  function applyCursorSpriteLayout(sprite, layout) {
+    sprite.style.width = layout.size + 'px';
+    sprite.style.height = layout.size + 'px';
+    sprite.style.left = layout.left + 'px';
+    sprite.style.top = layout.top + 'px';
+  }
+
+  function layoutFromCursorRect(rect, layerRect) {
+    var cl = cursorLayout(rect);
+    return {
+      size: cl.size,
+      left: rect.left - layerRect.left + rect.width + cl.gap,
+      top: rect.top - layerRect.top - cl.size + rect.height + cl.offsetY
+    };
+  }
+
   function syncCursorSprites(editorRoot) {
     var layer = editorRoot.querySelector('.cursors-layer');
     if (!layer) return;
 
+    var state = getEditorCursorState(editorRoot);
+
     if (!isEditorVisible(editorRoot)) {
-      layer.querySelectorAll('.fleet-cursor-sprite').forEach(function (sprite) {
+      state.sprites.forEach(function (sprite) {
         sprite.style.display = 'none';
       });
       return;
@@ -80,47 +126,186 @@
 
     var cursors = cursorNodes(editorRoot);
     var layerRect = layer.getBoundingClientRect();
-    var linked = new Set();
+
+    function paintSprites(count, measureRect) {
+      while (state.sprites.length > count) {
+        var extra = state.sprites.pop();
+        if (extra) extra.remove();
+        state.layouts.pop();
+      }
+
+      for (var i = 0; i < count; i++) {
+        var layout = null;
+        var cursor = cursors[i];
+        if (cursor && measureRect) {
+          var rect = cursor.getBoundingClientRect();
+          if (rect.height > 0) {
+            layout = layoutFromCursorRect(rect, layerRect);
+            state.layouts[i] = layout;
+          }
+        }
+        if (!layout) layout = state.layouts[i];
+        if (!layout) continue;
+
+        var sprite = state.sprites[i];
+        if (!sprite) {
+          sprite = document.createElement('img');
+          sprite.className = 'fleet-cursor-sprite';
+          sprite.src = CURSOR_GIF;
+          sprite.draggable = false;
+          sprite.alt = '';
+          layer.appendChild(sprite);
+          state.sprites[i] = sprite;
+        }
+
+        sprite.style.display = '';
+        applyCursorSpriteLayout(sprite, layout);
+      }
+    }
 
     if (!cursors.length) {
-      layer.querySelectorAll('.fleet-cursor-sprite').forEach(function (sprite) {
-        sprite.style.display = 'none';
-      });
+      paintSprites(state.layouts.length, false);
+      if (state.hideTimer) return;
+      state.hideTimer = setTimeout(function () {
+        state.hideTimer = 0;
+        if (!cursorNodes(editorRoot).length) {
+          state.sprites.forEach(function (sprite) {
+            sprite.style.display = 'none';
+          });
+        } else {
+          scheduleCursorSync();
+        }
+      }, CURSOR_HIDE_GRACE_MS);
       return;
     }
 
-    cursors.forEach(function (cursor) {
-      var rect = cursor.getBoundingClientRect();
-      if (rect.height <= 0) return;
+    if (state.hideTimer) {
+      clearTimeout(state.hideTimer);
+      state.hideTimer = 0;
+    }
 
-      var sprite = cursor._fleetCursorSprite;
-      if (!sprite) {
-        sprite = document.createElement('img');
-        sprite.className = 'fleet-cursor-sprite';
-        sprite.src = CURSOR_GIF;
-        sprite.draggable = false;
-        sprite.alt = '';
-        layer.appendChild(sprite);
-        cursor._fleetCursorSprite = sprite;
+    paintSprites(cursors.length, true);
+  }
+
+  function activeNativeInput() {
+    var el = document.activeElement;
+    if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return null;
+    if (!el.closest('.monaco-inputbox')) return null;
+    return el;
+  }
+
+  function measureInputCaretX(input) {
+    var style = window.getComputedStyle(input);
+    var pos = input.selectionStart;
+    if (pos == null) pos = 0;
+    var text = input.value.substring(0, pos);
+    var canvas = input._fleetMeasureCanvas;
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      input._fleetMeasureCanvas = canvas;
+    }
+    var ctx = canvas.getContext('2d');
+    ctx.font = style.font;
+    return ctx.measureText(text).width;
+  }
+
+  function ensureNativeCursorHost() {
+    var host = document.getElementById('fleet-native-cursor-host');
+    if (host) return host;
+    host = document.createElement('div');
+    host.id = 'fleet-native-cursor-host';
+    host.setAttribute('aria-hidden', 'true');
+    host.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:99999;overflow:visible';
+    document.body.appendChild(host);
+    return host;
+  }
+
+  function clearNativeCursorHost() {
+    var host = document.getElementById('fleet-native-cursor-host');
+    if (host) host.textContent = '';
+  }
+
+  function clearNativeInputDecorations(input) {
+    if (!input) return;
+    if (input._fleetNativeCaretBar) {
+      input._fleetNativeCaretBar.remove();
+      input._fleetNativeCaretBar = null;
+    }
+    if (input._fleetNativeSprite) {
+      input._fleetNativeSprite.remove();
+      input._fleetNativeSprite = null;
+    }
+  }
+
+  var lastNativeInput = null;
+
+  function syncNativeInputSprite(input) {
+    if (lastNativeInput && lastNativeInput !== input) {
+      clearNativeInputDecorations(lastNativeInput);
+    }
+    lastNativeInput = input;
+
+    var host = ensureNativeCursorHost();
+
+    var style = window.getComputedStyle(input);
+    var inputRect = input.getBoundingClientRect();
+    if (inputRect.width <= 2 || inputRect.height <= 2) return;
+
+    var padL = parseFloat(style.paddingLeft) || 0;
+    var padT = parseFloat(style.paddingTop) || 0;
+    var lineH = parseFloat(style.lineHeight);
+    if (isNaN(lineH) || lineH <= 0) lineH = inputRect.height - padT - (parseFloat(style.paddingBottom) || 0);
+    if (lineH <= 0) lineH = inputRect.height;
+
+    var caretX = padL + measureInputCaretX(input) - (input.scrollLeft || 0);
+    var caretLeft = inputRect.left + caretX;
+    var caretTop = inputRect.top + padT;
+    var layout = cursorLayout({ height: lineH });
+
+    var caretBar = input._fleetNativeCaretBar;
+    if (!caretBar) {
+      caretBar = document.createElement('div');
+      caretBar.className = 'fleet-native-caret-bar';
+      input._fleetNativeCaretBar = caretBar;
+      host.appendChild(caretBar);
+    }
+    caretBar.style.left = caretLeft + 'px';
+    caretBar.style.top = caretTop + 'px';
+    caretBar.style.height = lineH + 'px';
+
+    var sprite = input._fleetNativeSprite;
+    if (!sprite) {
+      sprite = document.createElement('img');
+      sprite.className = 'fleet-native-cursor-sprite';
+      sprite.src = CURSOR_GIF;
+      sprite.draggable = false;
+      sprite.alt = '';
+      input._fleetNativeSprite = sprite;
+      host.appendChild(sprite);
+    }
+    sprite.style.width = layout.size + 'px';
+    sprite.style.height = layout.size + 'px';
+    sprite.style.left = caretLeft + 1 + layout.gap + 'px';
+    sprite.style.top = caretTop - layout.size + lineH + layout.offsetY + 'px';
+  }
+
+  function syncAllNativeInputs() {
+    var input = activeNativeInput();
+    if (!input) {
+      if (lastNativeInput) {
+        clearNativeInputDecorations(lastNativeInput);
+        lastNativeInput = null;
       }
-
-      linked.add(sprite);
-      sprite.style.display = '';
-      var layout = cursorLayout(rect);
-      sprite.style.width = layout.size + 'px';
-      sprite.style.height = layout.size + 'px';
-      sprite.style.left = rect.left - layerRect.left + rect.width + layout.gap + 'px';
-      sprite.style.top = rect.top - layerRect.top - layout.size + rect.height + layout.offsetY + 'px';
-    });
-
-    layer.querySelectorAll('.fleet-cursor-sprite').forEach(function (sprite) {
-      if (!linked.has(sprite)) sprite.remove();
-    });
+      clearNativeCursorHost();
+      return;
+    }
+    syncNativeInputSprite(input);
   }
 
   function syncAllCursors() {
     cursorRaf = 0;
     document.querySelectorAll('.monaco-editor').forEach(syncCursorSprites);
+    syncAllNativeInputs();
   }
 
   function scheduleCursorSync() {
@@ -148,6 +333,20 @@
     if (editorParticles) editorParticles.set(editorRoot, n);
   }
 
+  function dropParticleSize(spriteUrl, dropScale) {
+    var targetMax = (DROP_DISPLAY_MIN + Math.random() * (DROP_DISPLAY_MAX - DROP_DISPLAY_MIN)) *
+      Math.max(0.75, dropScale);
+    var meta = dropSpriteMeta[spriteUrl];
+    if (!meta) {
+      return { w: Math.round(targetMax), h: Math.round(targetMax) };
+    }
+    var scale = targetMax / meta.maxDim;
+    return {
+      w: Math.max(8, Math.round(meta.w * scale)),
+      h: Math.max(8, Math.round(meta.h * scale))
+    };
+  }
+
   function spawnParticle(editorRoot, cursorIndex) {
     if (!DROP_SPRITES.length) return false;
 
@@ -172,14 +371,15 @@
     var layout = cursorLayout(cRect);
     var layer = ensureDropLayer(editorRoot);
     var dropScale = cRect.height / CURSOR_REF_LINE_HEIGHT;
-    var size = Math.round((14 + Math.random() * 12) * Math.max(0.75, dropScale));
+    var spriteUrl = pickDropSprite();
+    var dropSize = dropParticleSize(spriteUrl, dropScale);
     var img = document.createElement('img');
     img.className = 'fleet-drop-particle';
-    img.src = pickDropSprite();
+    img.src = spriteUrl;
     img.draggable = false;
     img.alt = '';
-    img.style.width = size + 'px';
-    img.style.height = size + 'px';
+    img.style.width = dropSize.w + 'px';
+    img.style.height = dropSize.h + 'px';
 
     var x = cRect.left - edRect.left + cRect.width + layout.gap + Math.random() * 8;
     var y = cRect.top - edRect.top + cRect.height * 0.5 + Math.random() * 4;
@@ -301,6 +501,13 @@
     if (editorObservers && editorObservers.has(editorRoot)) return;
     ensureDropLayer(editorRoot);
 
+    var layer = editorRoot.querySelector('.cursors-layer');
+    if (layer) {
+      layer.querySelectorAll('.fleet-cursor-sprite').forEach(function (orphan) {
+        orphan.remove();
+      });
+    }
+
     var mo = new MutationObserver(function () {
       scheduleCursorSync();
     });
@@ -331,7 +538,6 @@
 
   function onEditorActivated() {
     scheduleCursorSync();
-    setTimeout(scheduleCursorSync, 0);
     setTimeout(scheduleCursorSync, 120);
   }
 
@@ -346,7 +552,18 @@
 
   document.addEventListener('focusin', function (e) {
     if (activeEditorFromTarget(e.target)) onEditorActivated();
+    if (e.target && e.target.closest && e.target.closest('.monaco-inputbox')) scheduleCursorSync();
   }, true);
+
+  document.addEventListener('focusout', function (e) {
+    if (e.target && e.target.closest && e.target.closest('.monaco-inputbox')) {
+      setTimeout(function () {
+        if (!activeNativeInput()) syncAllNativeInputs();
+      }, 0);
+    }
+  }, true);
+
+  document.addEventListener('selectionchange', scheduleCursorSync);
 
   document.addEventListener('mousedown', function (e) {
     if (e.target.closest('.monaco-editor') || e.target.closest('.tab')) onEditorActivated();
@@ -363,6 +580,10 @@
   document.addEventListener('input', onEditorInput, true);
   document.addEventListener('keyup', scheduleCursorSync, true);
   document.addEventListener('mouseup', scheduleCursorSync, true);
+  document.addEventListener('scroll', function (e) {
+    if (!activeNativeInput() && !e.target.closest('.monaco-editor')) return;
+    scheduleCursorSync();
+  }, true);
 
   scanEditors();
 })();

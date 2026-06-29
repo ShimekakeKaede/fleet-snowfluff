@@ -1,7 +1,6 @@
 /* Fleet Snowfluff — Vibrancy opaque-chrome overlay
- *
- * Requires: Vibrancy Continued + vscode_vibrancy.imports → deployed CSS (setup script embeds JS).
- * Run scripts/setup-vibrancy.ps1 after edits, then Reload Vibrancy.
+ * Source: vibrancy/css/opaque-chrome.css
+ * Deploy: scripts/setup-vibrancy.ps1 → %APPDATA%/Cursor/User/fleet-snowfluff/vibrancy-opaque-chrome.css
  *
  * ┌─────────────────────────────────────────────────────────────────┐
  * │ Chrome (opaque #111111)                                         │
@@ -36,7 +35,7 @@
  * │ Editor indent guides — pink→indigo gradient by nesting depth (theme colors) │
  * │ Editor atmosphere — selection gradient, GIF cursor, typing droppings, glitch   │
  * │ Panel view switcher — flowing underline on checked composite-bar item       │
- * │ Breakpoint glyph — Aemeath_GLASS_titlebar.gif (fleet-titlebar-mascot.css)   │
+ * │ Breakpoint glyph — Aemeath_GLASS_inline.gif (fleet-titlebar-mascot.css)   │
  * └─────────────────────────────────────────────────────────────────┘ */
 
 :root {
@@ -91,6 +90,12 @@
   --fleet-act-glow-near: 4px;
   --fleet-act-glow-far: 10px;
   --fleet-act-icon-stroke: 0.765px;
+  /* Omitted from color-theme.json (schema); applied here for Cursor chat / inline chat */
+  --vscode-inlineChat-background: #00000054;
+  --vscode-inlineChatInput-background: #00000054;
+  --vscode-chat-requestBackground: #00000054;
+  --vscode-chat-requestBubbleBackground: #00000054;
+  --vscode-chat-requestBubbleHoverBackground: #00000054;
 }
 
 @keyframes fleet-flow-y {
@@ -1116,6 +1121,31 @@ body.fleet-atmosphere-cursor .monaco-workbench .monaco-editor .cursors-layer .cu
   border-radius: 1px !important;
 }
 
+body.fleet-atmosphere-cursor .monaco-workbench .monaco-inputbox .input:focus {
+  caret-color: transparent !important;
+}
+
+body .monaco-workbench .monaco-inputbox .ibwrapper .fleet-native-caret-bar,
+body #fleet-native-cursor-host .fleet-native-caret-bar {
+  position: fixed;
+  width: 2px;
+  pointer-events: none;
+  z-index: 9;
+  background-color: var(--fleet-cursor-cyan);
+  animation: fleet-cursor-breathe 2.4s ease-in-out infinite;
+  border-radius: 1px;
+}
+
+body .monaco-workbench .monaco-inputbox .ibwrapper .fleet-native-cursor-sprite,
+body #fleet-native-cursor-host .fleet-native-cursor-sprite {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  animation: fleet-cursor-breathe 2.4s ease-in-out infinite;
+}
+
 body .monaco-workbench .monaco-editor .cursors-layer .fleet-cursor-sprite {
   position: absolute;
   pointer-events: none;
@@ -1138,6 +1168,7 @@ body .monaco-workbench .monaco-editor .fleet-drop-particle {
   pointer-events: none;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  object-fit: contain;
   will-change: left, top, opacity;
 }
 

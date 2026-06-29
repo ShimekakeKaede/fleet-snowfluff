@@ -73,7 +73,13 @@
     return false;
   }
 
+  function isEditorVisible(editorRoot) {
+    var rect = editorRoot.getBoundingClientRect();
+    return rect.width > 2 && rect.height > 2;
+  }
+
   function applyHighlights(editorRoot) {
+    if (!isEditorVisible(editorRoot)) return;
     var cursorCenters = cursorScreenCenters(editorRoot);
     var selRects = selectionRects(editorRoot);
 

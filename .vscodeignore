@@ -6,3 +6,5 @@
 **/*.ts
 node_modules/**
 assets/**
+vibrancy/**
+scripts/**
